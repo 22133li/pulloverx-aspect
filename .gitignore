@@ -1,0 +1,40 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+
+# Theos / tweak build output
+.theos/
+packages/
+obj/
+*.deb
+*.dylib
+*.a
+
+# Local archives and exported artifacts
+*.zip
+*.tar
+*.tar.gz
+
+# Runtime and debug output
+*.log
+*.crash
+*.ips
+
+# Local editor settings
+.vscode/
+.idea/
+
+# Local machine / deployment helpers
+.env
+.env.*
+*.mobileprovision
+*.p12
+*.pem
+*.key

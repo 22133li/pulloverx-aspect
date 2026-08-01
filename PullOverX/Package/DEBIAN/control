@@ -1,0 +1,14 @@
+Package: com.mlgm.pulloverx
+Name: PullOver X
+Version: 1.2.2
+Description: 悬浮多任务窗口工具，基于 Pullover Pro 进行修改
+Section: Tweaks
+Depends: firmware (>= 14.0), mobilesubstrate, preferenceloader
+Conflicts: com.dao.pulloverpro, com.c1d3r.pulloverpro
+Replaces: com.dao.pulloverpro, com.c1d3r.pulloverpro
+Priority: optional
+Architecture: iphoneos-arm
+Author: mlgm
+dev: mlgm
+Icon: https://mlgm66.github.io/icon/pullover.png
+Maintainer: mlgm

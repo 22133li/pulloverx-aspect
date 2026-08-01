@@ -1,0 +1,16 @@
+Package: com.mlgm.pulloverx.preferences
+Name: PullOverXPreferences
+Version: 1.2.2
+Description: 
+Section: PreferenceBundles
+Depends: firmware (>= 5.0), mobilesubstrate, preferenceloader
+Conflicts: 
+Replaces: 
+Priority: optional
+Architecture: iphoneos-arm
+Author: mlgm
+dev: 
+Homepage: 
+Depiction: 
+Maintainer: 
+Icon: 

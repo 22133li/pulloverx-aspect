@@ -1,0 +1,503 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 50;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		C715168B225BC4000021ADB8 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C715168A225BC4000021ADB8 /* Foundation.framework */; };
+		C7151696225BC4000021ADB8 /* PullOverX.mm in Sources */ = {isa = PBXBuildFile; fileRef = C7151695225BC4000021ADB8 /* PullOverX.mm */; };
+		C71516A3225BC55F0021ADB8 /* PullOverWindow.m in Sources */ = {isa = PBXBuildFile; fileRef = C71516A1225BC55F0021ADB8 /* PullOverWindow.m */; };
+		C71516A8225BC62B0021ADB8 /* BaseScrollView.m in Sources */ = {isa = PBXBuildFile; fileRef = C71516A6225BC62B0021ADB8 /* BaseScrollView.m */; };
+		C71516AC225BC6500021ADB8 /* PullOverViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = C71516AA225BC6500021ADB8 /* PullOverViewController.m */; };
+		C71516B1225BC7800021ADB8 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C71516B0225BC7800021ADB8 /* UIKit.framework */; };
+		C71516B7225BDD6A0021ADB8 /* QuickSwitchTableView.m in Sources */ = {isa = PBXBuildFile; fileRef = C71516B5225BDD6A0021ADB8 /* QuickSwitchTableView.m */; };
+		C71516B9225BE35E0021ADB8 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C71516B8225BE35D0021ADB8 /* AudioToolbox.framework */; };
+		C71516BB225BE3A20021ADB8 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C71516BA225BE3A20021ADB8 /* CoreGraphics.framework */; };
+		C71516BF225BF12C0021ADB8 /* POApplicationHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = C71516BD225BF12C0021ADB8 /* POApplicationHelper.m */; };
+		C71516C7225BFEFD0021ADB8 /* QuickSwitchTableViewCell.m in Sources */ = {isa = PBXBuildFile; fileRef = C71516C5225BFEFD0021ADB8 /* QuickSwitchTableViewCell.m */; };
+		C71516D9225C676A0021ADB8 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C715168A225BC4000021ADB8 /* Foundation.framework */; };
+		C71516DA225C676A0021ADB8 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C71516B0225BC7800021ADB8 /* UIKit.framework */; };
+		C71516E8225C676A0021ADB8 /* PullOverXPreferencesController.m in Sources */ = {isa = PBXBuildFile; fileRef = C71516E7225C676A0021ADB8 /* PullOverXPreferencesController.m */; };
+		C715170B225C72770021ADB8 /* POHandle.m in Sources */ = {isa = PBXBuildFile; fileRef = C71516AD225BC6C00021ADB8 /* POHandle.m */; };
+		C7151715225C73440021ADB8 /* POApplicationHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = C71516BD225BF12C0021ADB8 /* POApplicationHelper.m */; };
+		C72445E1225D3743001E1330 /* QSFavoritesPickerController.m in Sources */ = {isa = PBXBuildFile; fileRef = C72445E0225D3743001E1330 /* QSFavoritesPickerController.m */; };
+		C72445E4225D480B001E1330 /* POStepperTableCell.m in Sources */ = {isa = PBXBuildFile; fileRef = C72445E3225D480B001E1330 /* POStepperTableCell.m */; };
+		C774843F2496A7EF00272DB5 /* POTimeStepperTableCell.m in Sources */ = {isa = PBXBuildFile; fileRef = C774843E2496A7EF00272DB5 /* POTimeStepperTableCell.m */; };
+		C77E05E0229B2B5E003A59C9 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C77E05DF229B2B5E003A59C9 /* QuartzCore.framework */; };
+		C77E05E1229B2B62003A59C9 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C77E05DF229B2B5E003A59C9 /* QuartzCore.framework */; };
+		C7CE0D42242A9EE700564335 /* libMobileGestalt.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = C7CE0D41242A9EE600564335 /* libMobileGestalt.tbd */; };
+		C7E559C7238B5FA500B70489 /* ContextHostManager.mm in Sources */ = {isa = PBXBuildFile; fileRef = C71516C9225C1AA10021ADB8 /* ContextHostManager.mm */; };
+		C900000000000000000001 /* POLocalization.m in Sources */ = {isa = PBXBuildFile; fileRef = C900000000000000000010 /* POLocalization.m */; };
+		C900000000000000000002 /* POLocalization.m in Sources */ = {isa = PBXBuildFile; fileRef = C900000000000000000010 /* POLocalization.m */; };
+		C900000000000000000100 /* PullOverXPreferences/Package/Library/PreferenceBundles/PullOverXPreferences.bundle/PullOverXPreferences.plist in Resources */ = {isa = PBXBuildFile; fileRef = C900000000000000000020 /* PullOverXPreferences/Package/Library/PreferenceBundles/PullOverXPreferences.bundle/PullOverXPreferences.plist */; };
+		C900000000000000000101 /* PullOverXPreferences.strings in Resources */ = {isa = PBXBuildFile; fileRef = C900000000000000000030 /* PullOverXPreferences.strings */; };
+		C900000000000000000102 /* Tweak.strings in Resources */ = {isa = PBXBuildFile; fileRef = C900000000000000000031 /* Tweak.strings */; };
+		DE00000000000000000011 /* L360ConfettiView.m in Sources */ = {isa = PBXBuildFile; fileRef = DE00000000000000000010 /* L360ConfettiView.m */; };
+		DE00000000000000000021 /* L360ConfettiArea.m in Sources */ = {isa = PBXBuildFile; fileRef = DE00000000000000000020 /* L360ConfettiArea.m */; };
+		DE00000000000000000031 /* L360ConfettiObject.m in Sources */ = {isa = PBXBuildFile; fileRef = DE00000000000000000030 /* L360ConfettiObject.m */; };
+		DE00000000000000000041 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C71516BA225BE3A20021ADB8 /* CoreGraphics.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		C71516FD225C679D0021ADB8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C715167D225BC4000021ADB8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C71516D7225C676A0021ADB8;
+			remoteInfo = PullOverXPreferences;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		C7151687225BC4000021ADB8 /* PullOverX.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = PullOverX.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		C715168A225BC4000021ADB8 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		C7151693225BC4000021ADB8 /* PullOverX-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "PullOverX-Prefix.pch"; sourceTree = "<group>"; };
+		C7151695225BC4000021ADB8 /* PullOverX.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = PullOverX.mm; sourceTree = "<group>"; };
+		C715169A225BC4000021ADB8 /* PullOverX.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = PullOverX.plist; path = Package/Library/MobileSubstrate/DynamicLibraries/PullOverX.plist; sourceTree = "<group>"; };
+		C71516A0225BC55F0021ADB8 /* PullOverWindow.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PullOverWindow.h; sourceTree = "<group>"; };
+		C71516A1225BC55F0021ADB8 /* PullOverWindow.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = PullOverWindow.m; sourceTree = "<group>"; };
+		C71516A5225BC62B0021ADB8 /* BaseScrollView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BaseScrollView.h; sourceTree = "<group>"; };
+		C71516A6225BC62B0021ADB8 /* BaseScrollView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = BaseScrollView.m; sourceTree = "<group>"; };
+		C71516A9225BC6500021ADB8 /* PullOverViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PullOverViewController.h; sourceTree = "<group>"; };
+		C71516AA225BC6500021ADB8 /* PullOverViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = PullOverViewController.m; sourceTree = "<group>"; };
+		C71516AD225BC6C00021ADB8 /* POHandle.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = POHandle.m; sourceTree = "<group>"; };
+		C71516AE225BC6C00021ADB8 /* POHandle.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = POHandle.h; sourceTree = "<group>"; };
+		C71516B0225BC7800021ADB8 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		C71516B4225BDD6A0021ADB8 /* QuickSwitchTableView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = QuickSwitchTableView.h; sourceTree = "<group>"; };
+		C71516B5225BDD6A0021ADB8 /* QuickSwitchTableView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = QuickSwitchTableView.m; sourceTree = "<group>"; };
+		C71516B8225BE35D0021ADB8 /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
+		C71516BA225BE3A20021ADB8 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
+		C71516BC225BF12C0021ADB8 /* POApplicationHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = POApplicationHelper.h; sourceTree = "<group>"; };
+		C71516BD225BF12C0021ADB8 /* POApplicationHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = POApplicationHelper.m; sourceTree = "<group>"; };
+		C71516C3225BF2350021ADB8 /* headers.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = headers.h; sourceTree = "<group>"; };
+		C71516C4225BFEFD0021ADB8 /* QuickSwitchTableViewCell.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = QuickSwitchTableViewCell.h; sourceTree = "<group>"; };
+		C71516C5225BFEFD0021ADB8 /* QuickSwitchTableViewCell.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = QuickSwitchTableViewCell.m; sourceTree = "<group>"; };
+		C71516C8225C1AA10021ADB8 /* ContextHostManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ContextHostManager.h; sourceTree = "<group>"; };
+		C71516C9225C1AA10021ADB8 /* ContextHostManager.mm */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.objcpp; path = ContextHostManager.mm; sourceTree = "<group>"; };
+		C71516D8225C676A0021ADB8 /* PullOverXPreferences.bundle */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PullOverXPreferences.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
+		C71516E4225C676A0021ADB8 /* PullOverXPreferences-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "PullOverXPreferences-Info.plist"; sourceTree = "<group>"; };
+		C71516E5225C676A0021ADB8 /* PullOverXPreferencesController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PullOverXPreferencesController.h; sourceTree = "<group>"; };
+		C71516E7225C676A0021ADB8 /* PullOverXPreferencesController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = PullOverXPreferencesController.m; sourceTree = "<group>"; };
+		C71516F7225C676A0021ADB8 /* PullOverXPreferences-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "PullOverXPreferences-Prefix.pch"; sourceTree = "<group>"; };
+		C72445DF225D3743001E1330 /* QSFavoritesPickerController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = QSFavoritesPickerController.h; sourceTree = "<group>"; };
+		C72445E0225D3743001E1330 /* QSFavoritesPickerController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = QSFavoritesPickerController.m; sourceTree = "<group>"; };
+		C72445E3225D480B001E1330 /* POStepperTableCell.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = POStepperTableCell.m; sourceTree = "<group>"; };
+		C72445FD22624437001E1330 /* IPC.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IPC.h; sourceTree = "<group>"; };
+		C774843E2496A7EF00272DB5 /* POTimeStepperTableCell.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = POTimeStepperTableCell.m; sourceTree = "<group>"; };
+		C77E05DF229B2B5E003A59C9 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
+		C7A168DA23B126B100451FA7 /* ContextInterfaces.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ContextInterfaces.h; sourceTree = "<group>"; };
+		C7CE0D41242A9EE600564335 /* libMobileGestalt.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libMobileGestalt.tbd; path = usr/lib/libMobileGestalt.tbd; sourceTree = SDKROOT; };
+		C900000000000000000010 /* POLocalization.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = POLocalization.m; sourceTree = "<group>"; };
+		C900000000000000000011 /* POLocalization.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = POLocalization.h; sourceTree = "<group>"; };
+		C900000000000000000012 /* POPPath.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = POPPath.h; sourceTree = "<group>"; };
+		C900000000000000000020 /* PullOverXPreferences/Package/Library/PreferenceBundles/PullOverXPreferences.bundle/PullOverXPreferences.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PullOverXPreferences/Package/Library/PreferenceBundles/PullOverXPreferences.bundle/PullOverXPreferences.plist; sourceTree = SOURCE_ROOT; };
+		C900000000000000000021 /* PullOverXPreferences/Package/Library/PreferenceBundles/PullOverXPreferences.bundle/en.lproj/PullOverXPreferences.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; path = PullOverXPreferences/Package/Library/PreferenceBundles/PullOverXPreferences.bundle/en.lproj/PullOverXPreferences.strings; sourceTree = SOURCE_ROOT; };
+		C900000000000000000022 /* PullOverXPreferences/Package/Library/PreferenceBundles/PullOverXPreferences.bundle/zh-Hans.lproj/PullOverXPreferences.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; path = "PullOverXPreferences/Package/Library/PreferenceBundles/PullOverXPreferences.bundle/zh-Hans.lproj/PullOverXPreferences.strings"; sourceTree = SOURCE_ROOT; };
+		C900000000000000000023 /* PullOverXPreferences/Package/Library/PreferenceBundles/PullOverXPreferences.bundle/en.lproj/Tweak.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; path = PullOverXPreferences/Package/Library/PreferenceBundles/PullOverXPreferences.bundle/en.lproj/Tweak.strings; sourceTree = SOURCE_ROOT; };
+		C900000000000000000024 /* PullOverXPreferences/Package/Library/PreferenceBundles/PullOverXPreferences.bundle/zh-Hans.lproj/Tweak.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; path = "PullOverXPreferences/Package/Library/PreferenceBundles/PullOverXPreferences.bundle/zh-Hans.lproj/Tweak.strings"; sourceTree = SOURCE_ROOT; };
+		DE00000000000000000010 /* L360ConfettiView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = L360ConfettiView.m; path = ThirdParty/L360Confetti/iOS/L360Confetti/L360ConfettiView.m; sourceTree = SOURCE_ROOT; };
+		DE00000000000000000020 /* L360ConfettiArea.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = L360ConfettiArea.m; path = ThirdParty/L360Confetti/iOS/L360Confetti/L360ConfettiArea.m; sourceTree = SOURCE_ROOT; };
+		DE00000000000000000030 /* L360ConfettiObject.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = L360ConfettiObject.m; path = ThirdParty/L360Confetti/iOS/L360Confetti/L360ConfettiObject.m; sourceTree = SOURCE_ROOT; };
+		DE000000000000000000C0 /* PullOverX.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = PullOverX.xcconfig; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C7151683225BC4000021ADB8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C7CE0D42242A9EE700564335 /* libMobileGestalt.tbd in Frameworks */,
+				C77E05E0229B2B5E003A59C9 /* QuartzCore.framework in Frameworks */,
+				C71516BB225BE3A20021ADB8 /* CoreGraphics.framework in Frameworks */,
+				C71516B9225BE35E0021ADB8 /* AudioToolbox.framework in Frameworks */,
+				C71516B1225BC7800021ADB8 /* UIKit.framework in Frameworks */,
+				C715168B225BC4000021ADB8 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C71516D4225C676A0021ADB8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C77E05E1229B2B62003A59C9 /* QuartzCore.framework in Frameworks */,
+				DE00000000000000000041 /* CoreGraphics.framework in Frameworks */,
+				C71516DA225C676A0021ADB8 /* UIKit.framework in Frameworks */,
+				C71516D9225C676A0021ADB8 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		C715167C225BC4000021ADB8 = {
+			isa = PBXGroup;
+			children = (
+				C900000000000000000011 /* POLocalization.h */,
+				C900000000000000000010 /* POLocalization.m */,
+				C900000000000000000012 /* POPPath.h */,
+				DE000000000000000000C0 /* PullOverX.xcconfig */,
+				C715168C225BC4000021ADB8 /* PullOverX */,
+				C71516DD225C676A0021ADB8 /* PullOverXPreferences */,
+				C7151689225BC4000021ADB8 /* Frameworks */,
+				C7151688225BC4000021ADB8 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		C7151688225BC4000021ADB8 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C7151687225BC4000021ADB8 /* PullOverX.dylib */,
+				C71516D8225C676A0021ADB8 /* PullOverXPreferences.bundle */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C7151689225BC4000021ADB8 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				C7CE0D41242A9EE600564335 /* libMobileGestalt.tbd */,
+				C77E05DF229B2B5E003A59C9 /* QuartzCore.framework */,
+				C71516BA225BE3A20021ADB8 /* CoreGraphics.framework */,
+				C71516B8225BE35D0021ADB8 /* AudioToolbox.framework */,
+				C71516B0225BC7800021ADB8 /* UIKit.framework */,
+				C715168A225BC4000021ADB8 /* Foundation.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		C715168C225BC4000021ADB8 /* PullOverX */ = {
+			isa = PBXGroup;
+			children = (
+				C72445FD22624437001E1330 /* IPC.h */,
+				C7151695225BC4000021ADB8 /* PullOverX.mm */,
+				C71516C8225C1AA10021ADB8 /* ContextHostManager.h */,
+				C71516C9225C1AA10021ADB8 /* ContextHostManager.mm */,
+				C7A168DA23B126B100451FA7 /* ContextInterfaces.h */,
+				C71516A0225BC55F0021ADB8 /* PullOverWindow.h */,
+				C71516A1225BC55F0021ADB8 /* PullOverWindow.m */,
+				C71516A9225BC6500021ADB8 /* PullOverViewController.h */,
+				C71516AA225BC6500021ADB8 /* PullOverViewController.m */,
+				C71516AE225BC6C00021ADB8 /* POHandle.h */,
+				C71516AD225BC6C00021ADB8 /* POHandle.m */,
+				C71516B4225BDD6A0021ADB8 /* QuickSwitchTableView.h */,
+				C71516B5225BDD6A0021ADB8 /* QuickSwitchTableView.m */,
+				C71516C4225BFEFD0021ADB8 /* QuickSwitchTableViewCell.h */,
+				C71516C5225BFEFD0021ADB8 /* QuickSwitchTableViewCell.m */,
+				C71516A5225BC62B0021ADB8 /* BaseScrollView.h */,
+				C71516A6225BC62B0021ADB8 /* BaseScrollView.m */,
+				C71516C3225BF2350021ADB8 /* headers.h */,
+				C71516BC225BF12C0021ADB8 /* POApplicationHelper.h */,
+				C71516BD225BF12C0021ADB8 /* POApplicationHelper.m */,
+				C715169A225BC4000021ADB8 /* PullOverX.plist */,
+				C7151693225BC4000021ADB8 /* PullOverX-Prefix.pch */,
+			);
+			path = PullOverX;
+			sourceTree = "<group>";
+		};
+		C71516DD225C676A0021ADB8 /* PullOverXPreferences */ = {
+			isa = PBXGroup;
+			children = (
+				C71516E5225C676A0021ADB8 /* PullOverXPreferencesController.h */,
+				C71516E7225C676A0021ADB8 /* PullOverXPreferencesController.m */,
+				C72445DF225D3743001E1330 /* QSFavoritesPickerController.h */,
+				C72445E0225D3743001E1330 /* QSFavoritesPickerController.m */,
+				C72445E3225D480B001E1330 /* POStepperTableCell.m */,
+				C774843E2496A7EF00272DB5 /* POTimeStepperTableCell.m */,
+				DE00000000000000000010 /* L360ConfettiView.m */,
+				DE00000000000000000020 /* L360ConfettiArea.m */,
+				DE00000000000000000030 /* L360ConfettiObject.m */,
+				C71516E4225C676A0021ADB8 /* PullOverXPreferences-Info.plist */,
+				C71516F7225C676A0021ADB8 /* PullOverXPreferences-Prefix.pch */,
+				C900000000000000000020 /* PullOverXPreferences/Package/Library/PreferenceBundles/PullOverXPreferences.bundle/PullOverXPreferences.plist */,
+				C900000000000000000030 /* PullOverXPreferences.strings */,
+				C900000000000000000031 /* Tweak.strings */,
+			);
+			path = PullOverXPreferences;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C7151686225BC4000021ADB8 /* PullOverX */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C715169D225BC4000021ADB8 /* Build configuration list for PBXNativeTarget "PullOverX" */;
+			buildPhases = (
+				C7151682225BC4000021ADB8 /* Sources */,
+				C7151683225BC4000021ADB8 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C71516FE225C679D0021ADB8 /* PBXTargetDependency */,
+			);
+			name = PullOverX;
+			productName = PullOverX;
+			productReference = C7151687225BC4000021ADB8 /* PullOverX.dylib */;
+			productType = "com.apple.product-type.library.dynamic";
+		};
+		C71516D7225C676A0021ADB8 /* PullOverXPreferences */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C71516FA225C676A0021ADB8 /* Build configuration list for PBXNativeTarget "PullOverXPreferences" */;
+			buildPhases = (
+				C71516D3225C676A0021ADB8 /* Sources */,
+				C71516D4225C676A0021ADB8 /* Frameworks */,
+				C900000000000000000040 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PullOverXPreferences;
+			productName = PullOverXPreferences;
+			productReference = C71516D8225C676A0021ADB8 /* PullOverXPreferences.bundle */;
+			productType = "com.apple.product-type.bundle";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C715167D225BC4000021ADB8 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 1620;
+				TargetAttributes = {
+					C7151686225BC4000021ADB8 = {
+						CreatedOnToolsVersion = 10.1;
+					};
+					C71516D7225C676A0021ADB8 = {
+						CreatedOnToolsVersion = 10.1;
+					};
+				};
+			};
+			buildConfigurationList = C7151680225BC4000021ADB8 /* Build configuration list for PBXProject "PullOverX" */;
+			compatibilityVersion = "Xcode 9.3";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				"zh-Hans",
+			);
+			mainGroup = C715167C225BC4000021ADB8;
+			productRefGroup = C7151688225BC4000021ADB8 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C7151686225BC4000021ADB8 /* PullOverX */,
+				C71516D7225C676A0021ADB8 /* PullOverXPreferences */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		C900000000000000000040 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C900000000000000000100 /* PullOverXPreferences/Package/Library/PreferenceBundles/PullOverXPreferences.bundle/PullOverXPreferences.plist in Resources */,
+				C900000000000000000101 /* PullOverXPreferences.strings in Resources */,
+				C900000000000000000102 /* Tweak.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		C7151682225BC4000021ADB8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C900000000000000000001 /* POLocalization.m in Sources */,
+				C7E559C7238B5FA500B70489 /* ContextHostManager.mm in Sources */,
+				C715170B225C72770021ADB8 /* POHandle.m in Sources */,
+				C71516A3225BC55F0021ADB8 /* PullOverWindow.m in Sources */,
+				C71516A8225BC62B0021ADB8 /* BaseScrollView.m in Sources */,
+				C71516BF225BF12C0021ADB8 /* POApplicationHelper.m in Sources */,
+				C71516B7225BDD6A0021ADB8 /* QuickSwitchTableView.m in Sources */,
+				C7151696225BC4000021ADB8 /* PullOverX.mm in Sources */,
+				C71516AC225BC6500021ADB8 /* PullOverViewController.m in Sources */,
+				C71516C7225BFEFD0021ADB8 /* QuickSwitchTableViewCell.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C71516D3225C676A0021ADB8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C900000000000000000002 /* POLocalization.m in Sources */,
+				C71516E8225C676A0021ADB8 /* PullOverXPreferencesController.m in Sources */,
+				C774843F2496A7EF00272DB5 /* POTimeStepperTableCell.m in Sources */,
+				C72445E4225D480B001E1330 /* POStepperTableCell.m in Sources */,
+				C72445E1225D3743001E1330 /* QSFavoritesPickerController.m in Sources */,
+				C7151715225C73440021ADB8 /* POApplicationHelper.m in Sources */,
+				DE00000000000000000011 /* L360ConfettiView.m in Sources */,
+				DE00000000000000000021 /* L360ConfettiArea.m in Sources */,
+				DE00000000000000000031 /* L360ConfettiObject.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C71516FE225C679D0021ADB8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C71516D7225C676A0021ADB8 /* PullOverXPreferences */;
+			targetProxy = C71516FD225C679D0021ADB8 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		C900000000000000000030 /* PullOverXPreferences.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				C900000000000000000021 /* PullOverXPreferences/Package/Library/PreferenceBundles/PullOverXPreferences.bundle/en.lproj/PullOverXPreferences.strings */,
+				C900000000000000000022 /* PullOverXPreferences/Package/Library/PreferenceBundles/PullOverXPreferences.bundle/zh-Hans.lproj/PullOverXPreferences.strings */,
+			);
+			name = PullOverXPreferences.strings;
+			sourceTree = "<group>";
+		};
+		C900000000000000000031 /* Tweak.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				C900000000000000000023 /* PullOverXPreferences/Package/Library/PreferenceBundles/PullOverXPreferences.bundle/en.lproj/Tweak.strings */,
+				C900000000000000000024 /* PullOverXPreferences/Package/Library/PreferenceBundles/PullOverXPreferences.bundle/zh-Hans.lproj/Tweak.strings */,
+			);
+			name = Tweak.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		C715169B225BC4000021ADB8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = DE000000000000000000C0 /* PullOverX.xcconfig */;
+			buildSettings = {
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				ONLY_ACTIVE_ARCH = NO;
+			};
+			name = Debug;
+		};
+		C715169C225BC4000021ADB8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = DE000000000000000000C0 /* PullOverX.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		C715169E225BC4000021ADB8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = DE000000000000000000C0 /* PullOverX.xcconfig */;
+			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD)";
+				GCC_PREFIX_HEADER = "PullOverX/PullOverX-Prefix.pch";
+				INFOPLIST_FILE = "$(SRCROOT)/PullOverX/Package/Library/MobileSubstrate/DynamicLibraries/PullOverX.plist";
+				INSTALL_PATH = /Library/MobileSubstrate/DynamicLibraries;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+					"-lsubstrate",
+					"$(POP_ROOTHIDE_LDFLAGS)",
+					"$(POP_ROOTLESS_LDFLAGS)",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		C715169F225BC4000021ADB8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = DE000000000000000000C0 /* PullOverX.xcconfig */;
+			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD)";
+				GCC_PREFIX_HEADER = "PullOverX/PullOverX-Prefix.pch";
+				INFOPLIST_FILE = "$(SRCROOT)/PullOverX/Package/Library/MobileSubstrate/DynamicLibraries/PullOverX.plist";
+				INSTALL_PATH = /Library/MobileSubstrate/DynamicLibraries;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+					"-lsubstrate",
+					"$(POP_ROOTHIDE_LDFLAGS)",
+					"$(POP_ROOTLESS_LDFLAGS)",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		C71516F8225C676A0021ADB8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = DE000000000000000000C0 /* PullOverX.xcconfig */;
+			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD)";
+				GCC_PREFIX_HEADER = "PullOverXPreferences/PullOverXPreferences-Prefix.pch";
+				INFOPLIST_FILE = "PullOverXPreferences/PullOverXPreferences-Info.plist";
+				INSTALL_PATH = /Library/PreferenceBundles;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+					"$(POP_ROOTHIDE_LDFLAGS)",
+					"$(POP_ROOTLESS_LDFLAGS)",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mlgm.pulloverx.preferences;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				WRAPPER_EXTENSION = bundle;
+			};
+			name = Debug;
+		};
+		C71516F9225C676A0021ADB8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = DE000000000000000000C0 /* PullOverX.xcconfig */;
+			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD)";
+				GCC_PREFIX_HEADER = "PullOverXPreferences/PullOverXPreferences-Prefix.pch";
+				INFOPLIST_FILE = "PullOverXPreferences/PullOverXPreferences-Info.plist";
+				INSTALL_PATH = /Library/PreferenceBundles;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+					"$(POP_ROOTHIDE_LDFLAGS)",
+					"$(POP_ROOTLESS_LDFLAGS)",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mlgm.pulloverx.preferences;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				WRAPPER_EXTENSION = bundle;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		C7151680225BC4000021ADB8 /* Build configuration list for PBXProject "PullOverX" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C715169B225BC4000021ADB8 /* Debug */,
+				C715169C225BC4000021ADB8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C715169D225BC4000021ADB8 /* Build configuration list for PBXNativeTarget "PullOverX" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C715169E225BC4000021ADB8 /* Debug */,
+				C715169F225BC4000021ADB8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C71516FA225C676A0021ADB8 /* Build configuration list for PBXNativeTarget "PullOverXPreferences" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C71516F8225C676A0021ADB8 /* Debug */,
+				C71516F9225C676A0021ADB8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = C715167D225BC4000021ADB8 /* Project object */;
+}
