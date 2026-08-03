@@ -55,6 +55,8 @@
 - (void)setBackgrounded:(bool)arg1;
 -(id)otherSettings;
 @property (assign,getter=isForeground,nonatomic) BOOL foreground;
+- (NSInteger)interfaceOrientation;
+- (void)setInterfaceOrientation:(NSInteger)orientation;
 - (void)setDeactivationReasons:(unsigned long long)arg1;
 - (void)setIdleModeEnabled:(BOOL)arg1;
 - (void)setOccluded:(BOOL)arg1;

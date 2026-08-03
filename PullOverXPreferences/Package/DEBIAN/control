@@ -1,6 +1,6 @@
 Package: com.mlgm.pulloverx.preferences
 Name: PullOverXPreferences
-Version: 1.2.2
+Version: 1.3.0
 Description: 
 Section: PreferenceBundles
 Depends: firmware (>= 5.0), mobilesubstrate, preferenceloader

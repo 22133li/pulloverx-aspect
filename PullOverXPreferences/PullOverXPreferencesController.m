@@ -191,6 +191,50 @@ static NSString * const kPOSettingsChangedNotification = @"com.mlgm.pulloverx.se
 
 @end
 
+#pragma mark - POSeparatorCell
+
+// A short divider for the QuickSwitch settings block. PreferenceLoader does
+// not expose a plist-only separator cell, so keep this as a one-point custom
+// cell instead of using another group header (which would add unwanted space).
+@interface POSeparatorCell : PSTableCell {
+    UIView *_separatorView;
+}
+@end
+
+@implementation POSeparatorCell
+
+- (instancetype)initWithStyle:(UITableViewCellStyle)style
+              reuseIdentifier:(NSString *)reuseIdentifier
+                    specifier:(PSSpecifier *)specifier {
+    self = [super initWithStyle:style reuseIdentifier:reuseIdentifier specifier:specifier];
+    if (self) {
+        self.selectionStyle = UITableViewCellSelectionStyleNone;
+        self.backgroundColor = [UIColor clearColor];
+        self.contentView.backgroundColor = [UIColor clearColor];
+
+        _separatorView = [[UIView alloc] init];
+        _separatorView.backgroundColor = [UIColor separatorColor];
+        _separatorView.translatesAutoresizingMaskIntoConstraints = NO;
+        [self.contentView addSubview:_separatorView];
+        UILayoutGuide *margins = self.contentView.layoutMarginsGuide;
+        [NSLayoutConstraint activateConstraints:@[
+            [_separatorView.leadingAnchor constraintEqualToAnchor:margins.leadingAnchor],
+            [_separatorView.trailingAnchor constraintEqualToAnchor:margins.trailingAnchor],
+            [_separatorView.centerYAnchor constraintEqualToAnchor:self.contentView.centerYAnchor],
+            [_separatorView.heightAnchor constraintEqualToConstant:0.5]
+        ]];
+    }
+    return self;
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    self.textLabel.hidden = YES;
+    self.detailTextLabel.hidden = YES;
+}
+
+@end
+
 #pragma mark - POLinkCell
 
 // 可点击的标题和副标题链接行，右侧使用 Safari 图标，直接定义在此避免新增编译文件。
@@ -559,7 +603,8 @@ static NSString * const kPOSettingsChangedNotification = @"com.mlgm.pulloverx.se
             if (showRecentApps && [identifier isEqualToString:@"favoriteApps"]) {
                 continue;
             }
-            if (!showRecentApps && [identifier isEqualToString:@"recentAppsCount"]) {
+            if (!showRecentApps && ([identifier isEqualToString:@"recentAppsCount"] ||
+                                    [identifier isEqualToString:@"quickSwitchRecentAppsDivider"])) {
                 continue;
             }
             [filteredSpecifiers addObject:specifier];

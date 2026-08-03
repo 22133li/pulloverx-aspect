@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# The camera daemon keeps its FigCapture client state across a tweak update.
+# Restart the services after installation so the new hooks are loaded without
+# requiring a full userspace/SpringBoard restart.  Either service may be
+# absent on a given iOS release, so failures are intentionally ignored.
+set +e
+
+killall -TERM cameracaptured >/dev/null 2>&1 || true
+killall -TERM mediaserverd >/dev/null 2>&1 || true
+
+exit 0

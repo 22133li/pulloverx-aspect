@@ -1,5 +1,6 @@
 #import "ContextHostManager.h"
 #import "POApplicationHelper.h"
+#import "FBSOrientationObserver.h"
 #import <objc/message.h>
 #import <objc/runtime.h>
 #include <stdlib.h>
@@ -31,6 +32,62 @@ enum {
 // rendered scene reliably. The working path is the scene's layer manager and
 // _UIContextLayerHostView.
 static NSString * const kPORequester = @"com.mlgm.pulloverx";
+
+static BOOL POIsConcreteInterfaceOrientation(UIInterfaceOrientation orientation) {
+    return orientation == UIInterfaceOrientationPortrait ||
+        orientation == UIInterfaceOrientationPortraitUpsideDown ||
+        orientation == UIInterfaceOrientationLandscapeLeft ||
+        orientation == UIInterfaceOrientationLandscapeRight;
+}
+
+static UIInterfaceOrientation POInterfaceOrientationFromSettings(id settings) {
+    SEL selector = NSSelectorFromString(@"interfaceOrientation");
+    if (settings && [settings respondsToSelector:selector]) {
+        return (UIInterfaceOrientation)((NSInteger (*)(id, SEL))objc_msgSend)(settings, selector);
+    }
+    return UIInterfaceOrientationPortrait;
+}
+
+static BOOL POSetInterfaceOrientationOnSettings(id settings, UIInterfaceOrientation orientation) {
+    SEL selector = NSSelectorFromString(@"setInterfaceOrientation:");
+    if (!settings || !POIsConcreteInterfaceOrientation(orientation) ||
+        ![settings respondsToSelector:selector]) {
+        return NO;
+    }
+    if (POInterfaceOrientationFromSettings(settings) == orientation) {
+        return NO;
+    }
+    ((void (*)(id, SEL, NSInteger))objc_msgSend)(settings, selector, (NSInteger)orientation);
+    return YES;
+}
+
+static UIInterfaceOrientation POCurrentSystemInterfaceOrientation(void) {
+    Class observerClass = NSClassFromString(@"FBSOrientationObserver");
+    id observer = observerClass ? [[observerClass alloc] init] : nil;
+    SEL activeSelector = NSSelectorFromString(@"activeInterfaceOrientation");
+    if (observer && [observer respondsToSelector:activeSelector]) {
+        UIInterfaceOrientation orientation =
+            (UIInterfaceOrientation)((long long (*)(id, SEL))objc_msgSend)(observer, activeSelector);
+        SEL invalidateSelector = NSSelectorFromString(@"invalidate");
+        if ([observer respondsToSelector:invalidateSelector]) {
+            ((void (*)(id, SEL))objc_msgSend)(observer, invalidateSelector);
+        }
+        if (POIsConcreteInterfaceOrientation(orientation)) {
+            return orientation;
+        }
+    }
+
+    id application = UIApplication.sharedApplication;
+    SEL springBoardOrientationSelector = NSSelectorFromString(@"activeInterfaceOrientation");
+    if (application && [application respondsToSelector:springBoardOrientationSelector]) {
+        UIInterfaceOrientation orientation =
+            (UIInterfaceOrientation)((long long (*)(id, SEL))objc_msgSend)(application, springBoardOrientationSelector);
+        if (POIsConcreteInterfaceOrientation(orientation)) {
+            return orientation;
+        }
+    }
+    return UIInterfaceOrientationUnknown;
+}
 
 
 static SBApplication *applicationForID(NSString *applicationID);
@@ -80,6 +137,9 @@ static void POLogSceneStateSelectors(id settings) {
 @property (nonatomic, copy) NSString *launchRequestedBundleId;
 @property (nonatomic, assign) BOOL observingLayers;
 @property (nonatomic, assign) BOOL hasPublishedSceneStack;
+@property (nonatomic, assign) UIInterfaceOrientation hostedInterfaceOrientation;
+@property (nonatomic, assign) BOOL awaitingHostedOrientation;
+@property (nonatomic, assign) NSUInteger hostedOrientationGeneration;
 @property (nonatomic, strong) id processAssertion;
 @property (nonatomic, strong) dispatch_source_t keepAliveTimer;
 - (void)startKeepAliveForBundleId:(NSString *)bundleId;
@@ -87,6 +147,10 @@ static void POLogSceneStateSelectors(id settings) {
 - (void)acquireProcessAssertionForBundleId:(NSString *)bundleId;
 - (void)releaseProcessAssertion;
 - (int)pidForBundleId:(NSString *)bundleId;
+- (UIInterfaceOrientation)preferredHostedInterfaceOrientation;
+- (BOOL)setForeground:(BOOL)foreground forScene:(FBScene *)scene;
+- (void)restoreSystemInterfaceOrientationForScene:(FBScene *)scene;
+- (void)scheduleHostedOrientationPublicationForScene:(FBScene *)scene;
 @end
 
 @implementation ContextHostManager
@@ -151,6 +215,15 @@ static void POLogSceneStateSelectors(id settings) {
     return [self shouldKeepForegroundForIdentifier:identifier];
 }
 
++ (void)applyHostedInterfaceOrientationToSettings:(id)settings forScene:(FBScene *)scene {
+    ContextHostManager *manager = [self sharedInstance];
+    if (scene != manager.hostedScene ||
+        !POIsConcreteInterfaceOrientation(manager.hostedInterfaceOrientation)) {
+        return;
+    }
+    POSetInterfaceOrientationOnSettings(settings, manager.hostedInterfaceOrientation);
+}
+
 
 -(UIView *)hostViewForBundleID:(NSString *)bundleId{
     if (bundleId.length == 0) {
@@ -173,6 +246,9 @@ static void POLogSceneStateSelectors(id settings) {
         self.hostedBundleId = [bundleId copy];
         self.launchRequestedBundleId = nil;
         self.hasPublishedSceneStack = NO;
+        self.hostedInterfaceOrientation = UIInterfaceOrientationUnknown;
+        self.awaitingHostedOrientation = NO;
+        self.hostedOrientationGeneration += 1;
     }
 
     // 冷启动只请求一次。反复以 suspended 方式启动同一应用会打断其场景创建，
@@ -189,14 +265,18 @@ static void POLogSceneStateSelectors(id settings) {
 
     BOOL sceneChanged = self.hostedScene != scene;
     self.hostedScene = scene;
+    if (sceneChanged || !POIsConcreteInterfaceOrientation(self.hostedInterfaceOrientation)) {
+        self.hostedInterfaceOrientation = [self preferredHostedInterfaceOrientation];
+    }
+    BOOL orientationChanged = NO;
     if (sceneChanged || ![self.hostedBundleId isEqualToString:bundleId]) {
         self.hostedBundleId = [bundleId copy];
-        [self setForeground:YES forScene:scene];
+        orientationChanged = [self setForeground:YES forScene:scene];
         [self acquireProcessAssertionForBundleId:bundleId];
         [self startKeepAliveForBundleId:bundleId];
     } else {
-        // Re-assert even if the same scene is reused; camera checks can race after backgrounding.
-        [self setForeground:YES forScene:scene];
+        // Re-assert even if the same scene is reused.
+        orientationChanged = [self setForeground:YES forScene:scene];
         [self acquireProcessAssertionForBundleId:bundleId];
         [self startKeepAliveForBundleId:bundleId];
     }
@@ -204,6 +284,16 @@ static void POLogSceneStateSelectors(id settings) {
     FBSceneLayerManager *layerManager = [self layerManagerForScene:scene];
     if (layerManager) {
         [self observeLayerManager:layerManager];
+        if (orientationChanged) {
+            // `_UIContextLayerHostView` only frames an already-rendered scene;
+            // it cannot rotate the app process' stale landscape surface. Wait
+            // one scene transaction before publishing a fresh host stack.
+            [self scheduleHostedOrientationPublicationForScene:scene];
+            return nil;
+        }
+        if (self.awaitingHostedOrientation) {
+            return nil;
+        }
         // 通过 delegate 发布当前场景栈，不在此直接返回视图。这样与 KVO 图层
         // 更新共用唯一的显示路径，避免两条路径同时重建视图导致面板闪烁。
         [self publishUpdatedSceneStacks];
@@ -247,6 +337,13 @@ static void POLogSceneStateSelectors(id settings) {
     self.hostedBundleId = nil;
     self.launchRequestedBundleId = nil;
     self.hasPublishedSceneStack = NO;
+    self.hostedInterfaceOrientation = UIInterfaceOrientationUnknown;
+    self.awaitingHostedOrientation = NO;
+    self.hostedOrientationGeneration += 1;
+    // Once this scene is no longer PO-owned, immediately return it to the
+    // device's real orientation. Otherwise opening the app normally after
+    // closing PullOver can inherit PO's virtual portrait orientation.
+    [self restoreSystemInterfaceOrientationForScene:scene];
     // 被托管 App 恰好是当前前台主 App 时（如在该 App 内打开面板托管它自己），
     // 绝不能设为后台，否则会把用户正在使用的前台 App 打到后台，表现为卡死。
     NSString *frontId = [POApplicationHelper frontMostBundleId];
@@ -295,6 +392,7 @@ static void POLogSceneStateSelectors(id settings) {
     }
     FBScene *scene = [self sceneForBundleId:bundleId];
     if (scene) {
+        [self restoreSystemInterfaceOrientationForScene:scene];
         [self setForeground:NO forScene:scene];
     }
 }
@@ -319,6 +417,7 @@ static void POLogSceneStateSelectors(id settings) {
     id mgr = [fbm respondsToSelector:@selector(sharedInstance)] ? [fbm sharedInstance] : nil;
     __block FBScene *bestScene = nil;
     __block NSInteger bestScore = NSIntegerMin;
+
     if (mgr && [mgr respondsToSelector:@selector(enumerateScenesWithBlock:)] && bundleId) {
         [mgr enumerateScenesWithBlock:^(id scene, BOOL *stop) {
             NSString *ident = nil;
@@ -385,8 +484,24 @@ static void POLogSceneStateSelectors(id settings) {
     }
 }
 
-- (void)setForeground:(BOOL)foreground forScene:(FBScene *)scene{
+- (UIInterfaceOrientation)preferredHostedInterfaceOrientation {
+    id<ContextHostManagerExternalSceneDelegate> delegate = self.sceneDelegate;
+    UIInterfaceOrientation orientation = UIInterfaceOrientationPortrait;
+    if ([delegate respondsToSelector:@selector(contextManagerPreferredHostedInterfaceOrientation:)]) {
+        orientation = [delegate contextManagerPreferredHostedInterfaceOrientation:self];
+    }
+    return POIsConcreteInterfaceOrientation(orientation)
+        ? orientation
+        : UIInterfaceOrientationPortrait;
+}
+
+- (BOOL)setForeground:(BOOL)foreground forScene:(FBScene *)scene{
+    __block BOOL orientationChanged = NO;
     [self mutateSettingsForScene:scene withBlock:^(id settings){
+        if (foreground && scene == self.hostedScene) {
+            orientationChanged = POSetInterfaceOrientationOnSettings(settings,
+                                                                       self.hostedInterfaceOrientation);
+        }
 #if DEBUG
         POLogSceneStateSelectors(settings);
         POHostDebugLog(@"Set foreground=%d for %@ using %@", foreground,
@@ -399,23 +514,34 @@ static void POLogSceneStateSelectors(id settings) {
         if ([settings respondsToSelector:@selector(setBackgrounded:)]) {
             [settings setBackgrounded:!foreground];
         }
-        // Camera capture on iOS 16/17 also keys off deactivation/occlusion, not only
-        // the foreground bit. Keep hosted scenes fully "active" while pinned.
-        if (foreground) {
-            if ([settings respondsToSelector:@selector(setDeactivationReasons:)]) {
-                ((void (*)(id, SEL, unsigned long long))objc_msgSend)(settings, @selector(setDeactivationReasons:), 0ULL);
-            }
-            if ([settings respondsToSelector:@selector(setIdleModeEnabled:)]) {
-                ((void (*)(id, SEL, BOOL))objc_msgSend)(settings, @selector(setIdleModeEnabled:), NO);
-            }
-            if ([settings respondsToSelector:@selector(setOccluded:)]) {
-                ((void (*)(id, SEL, BOOL))objc_msgSend)(settings, @selector(setOccluded:), NO);
-            }
-            if ([settings respondsToSelector:@selector(setUnderLock:)]) {
-                ((void (*)(id, SEL, BOOL))objc_msgSend)(settings, @selector(setUnderLock:), NO);
-            }
-        }
     }];
+    return orientationChanged;
+}
+
+- (void)restoreSystemInterfaceOrientationForScene:(FBScene *)scene {
+    UIInterfaceOrientation systemOrientation = POCurrentSystemInterfaceOrientation();
+    [self mutateSettingsForScene:scene withBlock:^(id settings){
+        POSetInterfaceOrientationOnSettings(settings, systemOrientation);
+    }];
+}
+
+- (void)scheduleHostedOrientationPublicationForScene:(FBScene *)scene {
+    self.awaitingHostedOrientation = YES;
+    NSUInteger generation = ++self.hostedOrientationGeneration;
+    __weak typeof(self) weakSelf = self;
+    // The app's process must receive the geometry update before its layer is
+    // wrapped. A short transaction boundary avoids briefly presenting the
+    // stale landscape surface; later layer KVO updates still republish.
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.15 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (!strongSelf || generation != strongSelf.hostedOrientationGeneration ||
+            strongSelf.hostedScene != scene) {
+            return;
+        }
+        strongSelf.awaitingHostedOrientation = NO;
+        [strongSelf publishUpdatedSceneStacks];
+    });
 }
 
 // 每个 scene 修改都用的 settings “读-改-写”公用方法。对 scene 可能暴露的多种
@@ -474,7 +600,9 @@ static void POLogSceneStateSelectors(id settings) {
     self.observingLayers = NO;
 }
 
-- (UIView *)sceneStackForScene:(FBScene *)scene keyboardSceneStack:(UIView **)keyboardStackOut{
+- (UIView *)sceneStackForScene:(FBScene *)scene
+             keyboardSceneStack:(UIView **)keyboardStackOut
+            hasKeyboardLayerOut:(BOOL *)hasKeyboardLayerOut{
     FBSceneLayerManager *manager = [self layerManagerForScene:scene];
     NSArray *layers = nil;
     @try {
@@ -498,12 +626,14 @@ static void POLogSceneStateSelectors(id settings) {
     CGRect stackFrame = (CGRect){ CGPointZero, stackSize };
     UIView *sceneStack = [[UIView alloc] initWithFrame:stackFrame];
     UIView *keyboardSceneStack = [[UIView alloc] initWithFrame:stackFrame];
+    BOOL hasKeyboardLayer = NO;
     for (FBSceneLayer *layer in layers) {
         @try {
             id sceneLayer = (id)layer;
             NSString *externalSceneId = [sceneLayer respondsToSelector:@selector(externalSceneID)] ? [sceneLayer externalSceneID] : nil;
             BOOL isKeyboardLayer = [sceneLayer respondsToSelector:@selector(isKeyboardLayer)] && [sceneLayer isKeyboardLayer];
             if (isKeyboardLayer) {
+                hasKeyboardLayer = YES;
                 Class keyboardHostClass = objc_getClass("_UIKeyboardLayerHostView");
                 _UIKeyboardLayerHostView *hostView = [[keyboardHostClass alloc] initWithKeyboardLayer:layer owningScene:scene];
                 hostView.frame = keyboardSceneStack.bounds;
@@ -526,27 +656,51 @@ static void POLogSceneStateSelectors(id settings) {
     if (keyboardStackOut) {
         *keyboardStackOut = keyboardSceneStack;
     }
+    if (hasKeyboardLayerOut) {
+        *hasKeyboardLayerOut = hasKeyboardLayer;
+    }
     return sceneStack;
 }
 
 - (void)publishUpdatedSceneStacks{
+    if (self.awaitingHostedOrientation) {
+        return;
+    }
     FBScene *scene = self.hostedScene;
     if (!scene) {
         return;
     }
     UIView *keyboardSceneStack = nil;
-    UIView *sceneStack = [self sceneStackForScene:scene keyboardSceneStack:&keyboardSceneStack];
+    BOOL hasKeyboardLayer = NO;
+    UIView *sceneStack = [self sceneStackForScene:scene
+                                keyboardSceneStack:&keyboardSceneStack
+                               hasKeyboardLayerOut:&hasKeyboardLayer];
+    id<ContextHostManagerExternalSceneDelegate> delegate = self.sceneDelegate;
+    // An empty app stack is still a meaningful publication: the external
+    // keyboard stack may have just lost its keyboard layer. Publish the
+    // negative fact before returning so the controller cannot retain a stale
+    // host-layer-present state.
     if (sceneStack.subviews.count == 0) {
+        if ([delegate respondsToSelector:@selector(contextManager:scene:externalSceneStackDidChange:containsKeyboardLayer:)]) {
+            [delegate contextManager:self
+                               scene:scene
+         externalSceneStackDidChange:keyboardSceneStack
+                 containsKeyboardLayer:hasKeyboardLayer];
+        }
         return;
     }
     self.hasPublishedSceneStack = YES;
 
-    id<ContextHostManagerExternalSceneDelegate> delegate = self.sceneDelegate;
     if ([delegate respondsToSelector:@selector(contextManager:scene:sceneStackDidChange:)]) {
         [delegate contextManager:self scene:scene sceneStackDidChange:sceneStack];
     }
-    if (keyboardSceneStack.subviews.count > 0 && [delegate respondsToSelector:@selector(contextManager:scene:externalSceneStackDidChange:)]) {
-        [delegate contextManager:self scene:scene externalSceneStackDidChange:keyboardSceneStack];
+    if ([delegate respondsToSelector:@selector(contextManager:scene:externalSceneStackDidChange:containsKeyboardLayer:)]) {
+        // Always publish the external stack, including an empty stack. The
+        // keyboard host layer can disappear while the app scene remains alive.
+        [delegate contextManager:self
+                           scene:scene
+     externalSceneStackDidChange:keyboardSceneStack
+             containsKeyboardLayer:hasKeyboardLayer];
     }
 }
 

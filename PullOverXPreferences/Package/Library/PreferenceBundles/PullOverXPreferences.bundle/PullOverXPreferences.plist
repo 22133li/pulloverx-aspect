@@ -64,6 +64,14 @@
 		</dict>
 		<dict>
 			<key>cellClass</key>
+			<string>POSeparatorCell</string>
+			<key>id</key>
+			<string>quickSwitchRecentAppsDivider</string>
+			<key>height</key>
+			<real>1</real>
+		</dict>
+		<dict>
+			<key>cellClass</key>
 			<string>POStepperTableCell</string>
 			<key>key</key>
 			<string>recentAppsCount</string>
@@ -241,6 +249,22 @@
 			<string>keyboardAvoiding</string>
 			<key>label</key>
 			<string>Keyboard Avoiding</string>
+			<key>defaults</key>
+			<string>com.mlgm.pulloverx</string>
+			<key>set</key>
+			<string>setValue:forSpecifier:</string>
+			<key>get</key>
+			<string>getValueForSpecifier:</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>key</key>
+			<string>landscapeKeyboardZoom</string>
+			<key>label</key>
+			<string>Enlarge Keyboard in Landscape</string>
 			<key>defaults</key>
 			<string>com.mlgm.pulloverx</string>
 			<key>set</key>

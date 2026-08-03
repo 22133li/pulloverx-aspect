@@ -130,12 +130,6 @@ cp "$DYLIB" "$ROOT/Library/MobileSubstrate/DynamicLibraries/PullOverX.dylib"
 cp "PullOverX/Package/Library/MobileSubstrate/DynamicLibraries/PullOverX.plist" \
    "$ROOT/Library/MobileSubstrate/DynamicLibraries/PullOverX.plist"
 
-# Tweak resources
-mkdir -p "$ROOT/Library/Application Support/PullOverX"
-cp changelog.plist "PullOverX/Package/Library/Application Support/PullOverX/changelog.plist"
-cp "PullOverX/Package/Library/Application Support/PullOverX/"* \
-   "$ROOT/Library/Application Support/PullOverX/"
-
 # Preference bundle (built) + bundled resources
 mkdir -p "$ROOT/Library/PreferenceBundles"
 cp -R "$BUNDLE" "$ROOT/Library/PreferenceBundles/PullOverXPreferences.bundle"
@@ -165,6 +159,9 @@ cp "PullOverXPreferences/Package/Library/PreferenceLoader/Preferences/PullOverXP
 mkdir -p "$STAGE/DEBIAN"
 sed -E "s/^Architecture:.*/Architecture: $DEB_ARCH/" \
 	"PullOverX/Package/DEBIAN/control" > "$STAGE/DEBIAN/control"
+if [ -f "PullOverX/Package/DEBIAN/postinst" ]; then
+	cp "PullOverX/Package/DEBIAN/postinst" "$STAGE/DEBIAN/postinst"
+fi
 
 # ---- Build the .deb ----------------------------------------------------------
 mkdir -p packages
