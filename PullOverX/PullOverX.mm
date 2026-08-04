@@ -529,6 +529,24 @@ static void _logos_method$_ungrouped$SpringBoard$applicationDidFinishLaunching$(
         [settingsDefaults synchronize];
     }
 
+    // These options default to enabled, while preserving an explicit user choice.
+    BOOL addedFeatureDefaults = NO;
+    if (![settingsDefaults objectForKey:@"hideOnScreenshot"]) {
+        [settingsDefaults setObject:@(YES) forKey:@"hideOnScreenshot"];
+        addedFeatureDefaults = YES;
+    }
+    if (![settingsDefaults objectForKey:@"keyboardAvoiding"]) {
+        [settingsDefaults setObject:@(YES) forKey:@"keyboardAvoiding"];
+        addedFeatureDefaults = YES;
+    }
+    if (![settingsDefaults objectForKey:@"landscapeKeyboardZoom"]) {
+        [settingsDefaults setObject:@(YES) forKey:@"landscapeKeyboardZoom"];
+        addedFeatureDefaults = YES;
+    }
+    if (addedFeatureDefaults) {
+        [settingsDefaults synchronize];
+    }
+
     NSMutableDictionary *settings = [POApplicationHelper settings];
     if (!POSettingsEnabled(settings)) {
         return;

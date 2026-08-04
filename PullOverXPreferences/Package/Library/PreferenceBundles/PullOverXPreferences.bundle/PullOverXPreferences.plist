@@ -124,7 +124,7 @@
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
-			<false/>
+			<true/>
 			<key>key</key>
 			<string>hideOnScreenshot</string>
 			<key>label</key>
@@ -244,7 +244,7 @@
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
-			<false/>
+			<true/>
 			<key>key</key>
 			<string>keyboardAvoiding</string>
 			<key>label</key>
@@ -260,7 +260,7 @@
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
-			<false/>
+			<true/>
 			<key>key</key>
 			<string>landscapeKeyboardZoom</string>
 			<key>label</key>

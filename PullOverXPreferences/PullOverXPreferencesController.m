@@ -603,8 +603,7 @@ static NSString * const kPOSettingsChangedNotification = @"com.mlgm.pulloverx.se
             if (showRecentApps && [identifier isEqualToString:@"favoriteApps"]) {
                 continue;
             }
-            if (!showRecentApps && ([identifier isEqualToString:@"recentAppsCount"] ||
-                                    [identifier isEqualToString:@"quickSwitchRecentAppsDivider"])) {
+            if (!showRecentApps && [identifier isEqualToString:@"recentAppsCount"]) {
                 continue;
             }
             [filteredSpecifiers addObject:specifier];
