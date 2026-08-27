@@ -816,6 +816,9 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         if (_aspectContentTransformNeeded) {
             // 比例模式: contentView 的渲染画布保持原始全高(避免 App scene 被压缩),
             // 然后用 transform 等比缩小到窗口大小, App 内容完整可见(等比缩小版)。
+            // 关键: bounds=全高画布让 FBScene 全高渲染; frame=normalCardFrame 让父布局
+            // 把 contentView 放在卡片大小区域(transform 不影响父布局的 frame 解释,
+            // 只影响视觉); transform=scale 等比缩小内容到窗口大小。
             CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
             CGFloat aspectScale = contentLayoutHeight / originalCardHeight;
             self.contentView.layer.anchorPoint = CGPointMake(0, 0);
@@ -823,9 +826,7 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
                 portraitCanvasWidth * chromeScale,
                 originalCardHeight);
             self.contentView.transform = CGAffineTransformMakeScale(aspectScale, aspectScale);
-            self.contentView.frame = CGRectMake(0, 0,
-                portraitCanvasWidth * chromeScale,
-                originalCardHeight);
+            self.contentView.frame = keyboardZoomContainer.bounds;
         } else {
             self.contentView.transform = CGAffineTransformIdentity;
             self.contentView.frame = keyboardZoomContainer.bounds;
