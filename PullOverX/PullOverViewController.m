@@ -68,6 +68,7 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     CGSize landscapeLogicalCanvasOverride;
     // 键盘可见期间比例窗口临时恢复原始比例(键盘收起后恢复比例窗)。
     BOOL keyboardActiveForAspect;
+    BOOL _aspectContentTransformNeeded;
     BOOL pendingOpenState;
     // 拖动结束后统一改用与点按相同的程序化滚动。该标记在滚动真正结束前
     // 阻止快捷切换菜单，避免卡片还残留在屏幕上时就被当作“已关闭”。
@@ -701,18 +702,21 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         contentLayoutWidth = round(logicalCanvas.width * scale * screenScale) / screenScale;
         contentLayoutHeight = round(availableCardHeight * screenScale) / screenScale;
     } else if (aspectRatio > 0 && !keyboardActiveForAspect) {
-        // 竖窗方案(视口裁切): 宽度保持原始卡片宽, 高度 = 宽 x 比例
+        // 竖窗方案(等比缩放): 窗口宽度保持原始卡片宽, 高度 = 宽 x 比例
         // (16:9 选项 = 窗口 高:宽 = 16:9, 依次 5:3/4:3 更接近方形)。
-        // 托管画布保持原始全高不变(viewport 裁切), App scene 渲染管线与原始完全一致,
-        // 避免画布压缩导致的渲染错位/底部内容缺失; 窗口内可滚动查看下方内容。
+        // 关键: contentLayoutHeight 决定窗口外观尺寸(卡片变矮), 但 contentView 的
+        // bounds 仍保持原始全高画布尺寸, 这样 FBScene 仍以全高渲染 QQ 等 App,
+        // 不会被压缩; 视觉上再通过 contentView.transform 把全高内容等比缩小到
+        // 窗口尺寸, 让用户能在矮窗口里看到 App 完整内容(等比缩小版, 不裁切底部)。
         CGFloat originalWidth = portraitCanvasWidth * chromeScale;
         contentLayoutWidth = originalWidth;
         contentLayoutHeight = round(originalWidth * aspectRatio);
         scale = chromeScale;
-        landscapeLogicalCanvasOverride = CGSizeZero; // 画布不压缩
+        landscapeLogicalCanvasOverride = CGSizeZero;
         CGFloat screenScale = UIScreen.mainScreen.scale;
         contentLayoutWidth = round(contentLayoutWidth * screenScale) / screenScale;
         contentLayoutHeight = round(contentLayoutHeight * screenScale) / screenScale;
+        _aspectContentTransformNeeded = YES;
     } else {
         // 竖屏保留 chromeScale 边距以避开非安全区的上下（刘海 / home 条）。
         // 卡片宽度 = 纯内容宽（画布宽 × chromeScale），不在此扣间距——离屏
@@ -727,6 +731,7 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         scale = chromeScale * cardFitScale;
         contentLayoutWidth = portraitCardWidth * cardFitScale;
         contentLayoutHeight = portraitCardHeight * cardFitScale;
+        _aspectContentTransformNeeded = NO;
     }
 
     self.backgroundView.frame = bounds;
@@ -808,7 +813,23 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         keyboardZoomContainer.frame = normalCardFrame;
         self->keyboardZoomBaseFrame = normalCardFrame;
         shadowView.frame = keyboardZoomContainer.bounds;
-        self.contentView.frame = keyboardZoomContainer.bounds;
+        if (_aspectContentTransformNeeded) {
+            // 比例模式: contentView 的渲染画布保持原始全高(避免 App scene 被压缩),
+            // 然后用 transform 等比缩小到窗口大小, App 内容完整可见(等比缩小版)。
+            CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
+            CGFloat aspectScale = contentLayoutHeight / originalCardHeight;
+            self.contentView.layer.anchorPoint = CGPointMake(0, 0);
+            self.contentView.bounds = CGRectMake(0, 0,
+                portraitCanvasWidth * chromeScale,
+                originalCardHeight);
+            self.contentView.transform = CGAffineTransformMakeScale(aspectScale, aspectScale);
+            self.contentView.frame = CGRectMake(0, 0,
+                portraitCanvasWidth * chromeScale,
+                originalCardHeight);
+        } else {
+            self.contentView.transform = CGAffineTransformIdentity;
+            self.contentView.frame = keyboardZoomContainer.bounds;
+        }
         shadowView.layer.shadowPath = [UIBezierPath bezierPathWithRoundedRect:shadowView.bounds
                                                                   cornerRadius:CONTENT_CORNER_RADIUS].CGPath;
     }];
