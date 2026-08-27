@@ -24,6 +24,11 @@ jobs:
           ls /opt/theos/sdks/ | head -5
           echo "THEOS=/opt/theos" >> $GITHUB_ENV
 
+      - name: Patch theos for roothide substrate
+        run: |
+          sudo mkdir -p /opt/theos/vendor/lib/iphone/roothide
+          sudo cp libsubstrate-roothide.tbd /opt/theos/vendor/lib/iphone/roothide/libsubstrate.tbd
+
       - name: Select Xcode
         run: |
           ls /Applications/ | grep Xcode
