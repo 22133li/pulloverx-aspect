@@ -681,14 +681,16 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     } else if ([aspectSetting isKindOfClass:NSNumber.class]) {
         aspectIndex = [aspectSetting integerValue];
     }
-    CGFloat aspectRatio = 0; // 0 = 原始
+    // aspectIndex (1=16:9, 2=5:3, 3=4:3) -> 用户指定的精确卡片尺寸(单位 pt)
+    // 原始走 else 分支, 保持 portraitCanvasWidth x portraitCanvasHeight (chromeScale 缩放)
+    CGSize aspectSize = CGSizeZero;
     switch (aspectIndex) {
-        case 1: aspectRatio = 16.0 / 9.0; break;
-        case 2: aspectRatio = 5.0 / 3.0; break;
-        case 3: aspectRatio = 4.0 / 3.0; break;
-        default: aspectRatio = 0; break;
+        case 1: aspectSize = CGSizeMake(381.0, 322.0); break;  // 16:9
+        case 2: aspectSize = CGSizeMake(382.0, 302.0); break;  // 5:3
+        case 3: aspectSize = CGSizeMake(378.0, 247.0); break;  // 4:3
+        default: aspectSize = CGSizeZero; break;
     }
-    NSLog(@"[PullOverX] cardAspect=%@ index=%ld ratio=%.3f", aspectSetting, (long)aspectIndex, aspectRatio);
+    NSLog(@"[PullOverX] cardAspect=%@ index=%ld size=%@", aspectSetting, (long)aspectIndex, NSStringFromCGSize(aspectSize));
     if (isLandscape) {
         // 横屏上下是手机侧边框（直线无缺口），卡片高度 = 屏幕高度减去上下各
         // 5pt 间隙即可，无需避开非安全区。托管画布 = 本机真实竖屏尺寸，把
@@ -701,16 +703,13 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         CGFloat screenScale = UIScreen.mainScreen.scale;
         contentLayoutWidth = round(logicalCanvas.width * scale * screenScale) / screenScale;
         contentLayoutHeight = round(availableCardHeight * screenScale) / screenScale;
-    } else if (aspectRatio > 0 && !keyboardActiveForAspect) {
-        // 竖窗方案(等比缩放): 窗口宽度保持原始卡片宽, 高度 = 宽 x 比例
-        // (16:9 选项 = 窗口 高:宽 = 16:9, 依次 5:3/4:3 更接近方形)。
-        // 关键: contentLayoutHeight 决定窗口外观尺寸(卡片变矮), 但 contentView 的
-        // bounds 仍保持原始全高画布尺寸, 这样 FBScene 仍以全高渲染 QQ 等 App,
-        // 不会被压缩; 视觉上再通过 contentView.transform 把全高内容等比缩小到
-        // 窗口尺寸, 让用户能在矮窗口里看到 App 完整内容(等比缩小版, 不裁切底部)。
-        CGFloat originalWidth = portraitCanvasWidth * chromeScale;
-        contentLayoutWidth = originalWidth;
-        contentLayoutHeight = round(originalWidth * aspectRatio);
+    } else if (aspectSize.width > 0 && !keyboardActiveForAspect) {
+        // 竖窗方案(精确尺寸): 直接使用用户指定的宽 x 高 (pt 单位)。
+        // contentView.bounds 保持原始全宽全高画布让 FBScene 完整渲染 App;
+        // transform=(1, aspectScale) 只缩垂直方向(避免右边留空白);
+        // 视觉效果: 窗口变矮, 内容垂直等比缩小, 宽度满铺卡片区。
+        contentLayoutWidth = aspectSize.width;
+        contentLayoutHeight = aspectSize.height;
         scale = chromeScale;
         landscapeLogicalCanvasOverride = CGSizeZero;
         CGFloat screenScale = UIScreen.mainScreen.scale;
