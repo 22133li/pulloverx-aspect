@@ -66,6 +66,8 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     // 用户选择小窗比例(非 original)时, 托管 App 使用的逻辑画布覆盖值;
     // original 时为 CGSizeZero, 回退到设备真实竖屏尺寸。
     CGSize landscapeLogicalCanvasOverride;
+    // 键盘可见期间比例窗口临时恢复原始比例(键盘收起后恢复比例窗)。
+    BOOL keyboardActiveForAspect;
     BOOL pendingOpenState;
     // 拖动结束后统一改用与点按相同的程序化滚动。该标记在滚动真正结束前
     // 阻止快捷切换菜单，避免卡片还残留在屏幕上时就被当作“已关闭”。
@@ -698,21 +700,16 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         CGFloat screenScale = UIScreen.mainScreen.scale;
         contentLayoutWidth = round(logicalCanvas.width * scale * screenScale) / screenScale;
         contentLayoutHeight = round(availableCardHeight * screenScale) / screenScale;
-    } else if (aspectRatio > 0) {
-        // 竖屏 + 用户指定比例(宽:高): 宽度保持原始卡片宽, 高度压缩为 宽/比例,
-        // 得到画中画式的横条小窗(16:9/5:3/4:3)。原始模式走 else 分支不变。
-        // 竖窗方案: 宽度保持原始卡片宽, 高度 = 宽 x 比例 (16:9 选项 = 窗口 高:宽 = 16:9,
-        // 即比原始(约9:19.5)略矮的修长竖窗; 5:3/4:3 依次更接近方形)。
+    } else if (aspectRatio > 0 && !keyboardActiveForAspect) {
+        // 竖窗方案(视口裁切): 宽度保持原始卡片宽, 高度 = 宽 x 比例
+        // (16:9 选项 = 窗口 高:宽 = 16:9, 依次 5:3/4:3 更接近方形)。
+        // 托管画布保持原始全高不变(viewport 裁切), App scene 渲染管线与原始完全一致,
+        // 避免画布压缩导致的渲染错位/底部内容缺失; 窗口内可滚动查看下方内容。
         CGFloat originalWidth = portraitCanvasWidth * chromeScale;
         contentLayoutWidth = originalWidth;
         contentLayoutHeight = round(originalWidth * aspectRatio);
-        // 托管逻辑画布同步: 宽保持设备短边, 高按卡片高/scale 反推,
-        // 托管 App 按新高度重排内容而不变形。
         scale = chromeScale;
-        CGFloat canvasWidth = portraitCanvasWidth;
-        CGFloat canvasHeight = contentLayoutHeight / scale;
-        canvasHeight = MIN(canvasHeight, portraitCanvasHeight);
-        landscapeLogicalCanvasOverride = CGSizeMake(canvasWidth, canvasHeight);
+        landscapeLogicalCanvasOverride = CGSizeZero; // 画布不压缩
         CGFloat screenScale = UIScreen.mainScreen.scale;
         contentLayoutWidth = round(contentLayoutWidth * screenScale) / screenScale;
         contentLayoutHeight = round(contentLayoutHeight * screenScale) / screenScale;
@@ -929,6 +926,11 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     [self updateKeyboardAnimationFromNotification:notification];
     keyboardNotificationState = POKeyboardNotificationStateVisible;
     keyboardHideAnimationInFlight = NO;
+    // 比例窗口: 键盘弹出时临时恢复原始比例, 键盘收起后恢复比例窗。
+    if (!keyboardActiveForAspect) {
+        keyboardActiveForAspect = YES;
+        [self applyLayoutPreservingHandlePosition:NO];
+    }
     [self avoidClosedHandleForKeyboardWillShow:notification];
     [self reevaluateKeyboardZoomAnimated:YES];
 }
@@ -961,6 +963,11 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     [self updateKeyboardAnimationFromNotification:notification];
     keyboardNotificationState = POKeyboardNotificationStateHidden;
     keyboardHideAnimationInFlight = YES;
+    // 键盘收起: 恢复比例窗。
+    if (keyboardActiveForAspect) {
+        keyboardActiveForAspect = NO;
+        [self applyLayoutPreservingHandlePosition:NO];
+    }
     [self restoreKeyboardZoomAnimated:YES];
     if ([[POApplicationHelper settings][@"keyboardAvoiding"] boolValue] && origOffset) {
         [handleScrollView setContentOffset:CGPointMake(0, [self clampedHandleOffset:origOffset.floatValue]) animated:YES];
