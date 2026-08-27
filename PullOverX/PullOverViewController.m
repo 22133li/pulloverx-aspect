@@ -686,27 +686,17 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         contentLayoutWidth = round(logicalCanvas.width * scale * screenScale) / screenScale;
         contentLayoutHeight = round(availableCardHeight * screenScale) / screenScale;
     } else if (aspectRatio > 0) {
-        // 竖屏 + 用户指定比例: 保持与原始布局相同的 chromeScale 安全区逻辑,
-        // 卡片高度不变(仍占满可用高度), 只把宽度压到 高度/比例。
-        // 托管画布宽度同步压缩, 让 App 内容按新宽度重排而不变形。
-        CGFloat availableCardHeight = CGRectGetHeight(bounds) * chromeScale;
-        contentLayoutHeight = availableCardHeight;
-        contentLayoutWidth = round(availableCardHeight / aspectRatio);
-        // 卡片不能比原始宽度更宽(比例小于原始时维持原始), 也不能窄于一个下限
+        // 竖屏 + 用户指定比例(宽:高): 宽度保持原始卡片宽, 高度压缩为 宽/比例,
+        // 得到画中画式的横条小窗(16:9/5:3/4:3)。原始模式走 else 分支不变。
         CGFloat originalWidth = portraitCanvasWidth * chromeScale;
-        if (contentLayoutWidth > originalWidth) {
-            contentLayoutWidth = originalWidth;
-        }
-        CGFloat minWidth = 180.0;
-        if (contentLayoutWidth < minWidth) {
-            contentLayoutWidth = minWidth;
-        }
-        // 托管逻辑画布: 高度保持设备竖屏长边, 宽度按卡片实际宽/scale 反推,
-        // 这样托管 App 收到的是真实可绘制区域, 内容按新宽度重排。
+        contentLayoutWidth = originalWidth;
+        contentLayoutHeight = round(originalWidth / aspectRatio);
+        // 托管逻辑画布同步: 宽保持设备短边, 高按卡片高/scale 反推,
+        // 托管 App 按新高度重排内容而不变形。
         scale = chromeScale;
-        CGFloat canvasHeight = portraitCanvasHeight;
-        CGFloat canvasWidth = contentLayoutWidth / scale;
-        canvasWidth = MIN(canvasWidth, portraitCanvasWidth);
+        CGFloat canvasWidth = portraitCanvasWidth;
+        CGFloat canvasHeight = contentLayoutHeight / scale;
+        canvasHeight = MIN(canvasHeight, portraitCanvasHeight);
         landscapeLogicalCanvasOverride = CGSizeMake(canvasWidth, canvasHeight);
         CGFloat screenScale = UIScreen.mainScreen.scale;
         contentLayoutWidth = round(contentLayoutWidth * screenScale) / screenScale;
