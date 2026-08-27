@@ -12,16 +12,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Theos
+      - name: Install Theos (at /opt/theos as xcconfig expects)
         run: |
           brew install ldid
-          git clone --recursive https://github.com/theos/theos.git $HOME/theos
-          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+          # 仓库 xcconfig 写死 THEOS=/opt/theos，直接装到那里
+          sudo mkdir -p /opt
+          sudo git clone --recursive https://github.com/theos/theos.git /opt/theos
+          # rootless/roothide SDK
+          curl -sL https://github.com/theos/sdks/archive/master.tar.gz | tar -xz -C /tmp
+          sudo cp -r /tmp/sdks-master/*.sdk /opt/theos/sdks/ 2>/dev/null || true
+          ls /opt/theos/sdks/ | head -5
+          echo "THEOS=/opt/theos" >> $GITHUB_ENV
 
       - name: Select Xcode
         run: |
           ls /Applications/ | grep Xcode
-          sudo xcode-select -s /Applications/Xcode_15.*.app/Contents/Developer || sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          # 用 runner 上最新的 Xcode(arm64e 支持完整)
+          XCODE_PATH=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          echo "Using $XCODE_PATH"
+          sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
           xcodebuild -version
           xcodebuild -showsdks | grep -i iphoneos
 
