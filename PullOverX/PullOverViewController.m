@@ -664,15 +664,28 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     CGFloat contentLayoutHeight;
     // 用户选择的小窗宽高比: original(原始) / 16:9 / 5:3 / 4:3 (宽:高)。
     // 仅在设备竖屏(卡片为竖向)时生效; 横屏下卡片本身按横屏画布布局, 不套用竖屏比例。
-    NSString *aspectSetting = [POApplicationHelper settings][@"cardAspect"];
-    CGFloat aspectRatio = 0; // 0 = 原始
-    if ([aspectSetting isEqualToString:@"16:9"]) {
-        aspectRatio = 16.0 / 9.0;
-    } else if ([aspectSetting isEqualToString:@"5:3"]) {
-        aspectRatio = 5.0 / 3.0;
-    } else if ([aspectSetting isEqualToString:@"4:3"]) {
-        aspectRatio = 4.0 / 3.0;
+    id aspectSetting = [POApplicationHelper settings][@"cardAspect"];
+    // PSSegmentCell 在部分 iOS 版本会存选择索引(NSUInteger)而非字符串;
+    // 同时兼容字符串键与索引(0=original,1=16:9,2=5:3,3=4:3, 与 validValues 顺序一致)。
+    NSInteger aspectIndex = -1;
+    if ([aspectSetting isKindOfClass:NSString.class]) {
+        NSString *str = aspectSetting;
+        if ([str isEqualToString:@"16:9"]) aspectIndex = 1;
+        else if ([str isEqualToString:@"5:3"]) aspectIndex = 2;
+        else if ([str isEqualToString:@"4:3"]) aspectIndex = 3;
+        else if ([str isEqualToString:@"original"]) aspectIndex = 0;
+        else if (str.integerValue >= 0 && str.integerValue <= 3) aspectIndex = str.integerValue;
+    } else if ([aspectSetting isKindOfClass:NSNumber.class]) {
+        aspectIndex = [aspectSetting integerValue];
     }
+    CGFloat aspectRatio = 0; // 0 = 原始
+    switch (aspectIndex) {
+        case 1: aspectRatio = 16.0 / 9.0; break;
+        case 2: aspectRatio = 5.0 / 3.0; break;
+        case 3: aspectRatio = 4.0 / 3.0; break;
+        default: aspectRatio = 0; break;
+    }
+    NSLog(@"[PullOverX] cardAspect=%@ index=%ld ratio=%.3f", aspectSetting, (long)aspectIndex, aspectRatio);
     if (isLandscape) {
         // 横屏上下是手机侧边框（直线无缺口），卡片高度 = 屏幕高度减去上下各
         // 5pt 间隙即可，无需避开非安全区。托管画布 = 本机真实竖屏尺寸，把
