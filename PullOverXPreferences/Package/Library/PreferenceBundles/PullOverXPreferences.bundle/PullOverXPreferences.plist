@@ -106,6 +106,26 @@
 		</dict>
 		<dict>
 			<key>cell</key>
+			<string>PSSegmentCell</string>
+			<key>default</key>
+			<string>original</string>
+			<key>key</key>
+			<string>cardAspect</string>
+			<key>label</key>
+			<string>Window Aspect</string>
+			<key>valuesDataSource</key>
+			<string>aspectKeysDataSource</string>
+			<key>titlesDataSource</key>
+			<string>aspectTitlesDataSource</string>
+			<key>defaults</key>
+			<string>com.mlgm.pulloverx</string>
+			<key>set</key>
+			<string>setValue:forSpecifier:</string>
+			<key>get</key>
+			<string>getValueForSpecifier:</string>
+		</dict>
+		<dict>
+			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
 			<false/>

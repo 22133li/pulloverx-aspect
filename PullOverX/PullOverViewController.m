@@ -63,6 +63,9 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     CGFloat chromeScale;
     CGFloat scale;
     CGFloat contentLayoutWidth;
+    // 用户选择小窗比例(非 original)时, 托管 App 使用的逻辑画布覆盖值;
+    // original 时为 CGSizeZero, 回退到设备真实竖屏尺寸。
+    CGSize landscapeLogicalCanvasOverride;
     BOOL pendingOpenState;
     // 拖动结束后统一改用与点按相同的程序化滚动。该标记在滚动真正结束前
     // 阻止快捷切换菜单，避免卡片还残留在屏幕上时就被当作“已关闭”。
@@ -659,6 +662,17 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     // 横屏上下是手机直边，没有刘海或灵动岛缺口，无需 chromeScale 边距，上下各保留 5pt 即可。
     BOOL isLandscape = CGRectGetWidth(bounds) > CGRectGetHeight(bounds);
     CGFloat contentLayoutHeight;
+    // 用户选择的小窗宽高比: original(原始) / 16:9 / 5:3 / 4:3 (宽:高)。
+    // 仅在设备竖屏(卡片为竖向)时生效; 横屏下卡片本身按横屏画布布局, 不套用竖屏比例。
+    NSString *aspectSetting = [POApplicationHelper settings][@"cardAspect"];
+    CGFloat aspectRatio = 0; // 0 = 原始
+    if ([aspectSetting isEqualToString:@"16:9"]) {
+        aspectRatio = 16.0 / 9.0;
+    } else if ([aspectSetting isEqualToString:@"5:3"]) {
+        aspectRatio = 5.0 / 3.0;
+    } else if ([aspectSetting isEqualToString:@"4:3"]) {
+        aspectRatio = 4.0 / 3.0;
+    }
     if (isLandscape) {
         // 横屏上下是手机侧边框（直线无缺口），卡片高度 = 屏幕高度减去上下各
         // 5pt 间隙即可，无需避开非安全区。托管画布 = 本机真实竖屏尺寸，把
@@ -671,12 +685,39 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         CGFloat screenScale = UIScreen.mainScreen.scale;
         contentLayoutWidth = round(logicalCanvas.width * scale * screenScale) / screenScale;
         contentLayoutHeight = round(availableCardHeight * screenScale) / screenScale;
+    } else if (aspectRatio > 0) {
+        // 竖屏 + 用户指定比例: 保持与原始布局相同的 chromeScale 安全区逻辑,
+        // 卡片高度不变(仍占满可用高度), 只把宽度压到 高度/比例。
+        // 托管画布宽度同步压缩, 让 App 内容按新宽度重排而不变形。
+        CGFloat availableCardHeight = CGRectGetHeight(bounds) * chromeScale;
+        contentLayoutHeight = availableCardHeight;
+        contentLayoutWidth = round(availableCardHeight / aspectRatio);
+        // 卡片不能比原始宽度更宽(比例小于原始时维持原始), 也不能窄于一个下限
+        CGFloat originalWidth = portraitCanvasWidth * chromeScale;
+        if (contentLayoutWidth > originalWidth) {
+            contentLayoutWidth = originalWidth;
+        }
+        CGFloat minWidth = 180.0;
+        if (contentLayoutWidth < minWidth) {
+            contentLayoutWidth = minWidth;
+        }
+        // 托管逻辑画布: 高度保持设备竖屏长边, 宽度按卡片实际宽/scale 反推,
+        // 这样托管 App 收到的是真实可绘制区域, 内容按新宽度重排。
+        scale = chromeScale;
+        CGFloat canvasHeight = portraitCanvasHeight;
+        CGFloat canvasWidth = contentLayoutWidth / scale;
+        canvasWidth = MIN(canvasWidth, portraitCanvasWidth);
+        landscapeLogicalCanvasOverride = CGSizeMake(canvasWidth, canvasHeight);
+        CGFloat screenScale = UIScreen.mainScreen.scale;
+        contentLayoutWidth = round(contentLayoutWidth * screenScale) / screenScale;
+        contentLayoutHeight = round(contentLayoutHeight * screenScale) / screenScale;
     } else {
         // 竖屏保留 chromeScale 边距以避开非安全区的上下（刘海 / home 条）。
         // 卡片宽度 = 纯内容宽（画布宽 × chromeScale），不在此扣间距——离屏
         // 5pt 间距由下方 trailingInset 单独负责（与横屏一致）。曾在此处减
         // CONTENT_EDGE_GAP 会把间距重复计入、压窄内容，导致设置页右侧滚动条
         // 被裁掉一条。
+        landscapeLogicalCanvasOverride = CGSizeZero; // 原始比例: 清除托管画布覆盖
         CGFloat portraitCardWidth = portraitCanvasWidth * chromeScale;
         CGFloat portraitCardHeight = portraitCanvasHeight * chromeScale;
         CGFloat availableCardHeight = CGRectGetHeight(bounds) * chromeScale;
@@ -852,10 +893,15 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
 // 横屏下托管 App 用于排版的逻辑画布：本机真实的竖屏尺寸（短边×长边）。
 // 不伪造任何设备，App 拿到自己真实的尺寸/安全区，据此完整正确布局；
 // 整台竖屏画布再等比缩小塞进横屏可用高度。布局和场景栈尺寸都用它。
+// 用户选择小窗比例后, 竖屏卡片宽度被压缩, 由 landscapeLogicalCanvasOverride
+// 提供同步压缩的托管画布, 让 App 按新宽度重排。
 -(CGSize)landscapeLogicalCanvasSizeForBounds:(CGRect)bounds{
-    CGFloat shortSide = MIN(CGRectGetWidth(bounds), CGRectGetHeight(bounds));
-    CGFloat longSide = MAX(CGRectGetWidth(bounds), CGRectGetHeight(bounds));
-    return CGSizeMake(shortSide, longSide);
+    if (CGSizeEqualToSize(landscapeLogicalCanvasOverride, CGSizeZero)) {
+        CGFloat shortSide = MIN(CGRectGetWidth(bounds), CGRectGetHeight(bounds));
+        CGFloat longSide = MAX(CGRectGetWidth(bounds), CGRectGetHeight(bounds));
+        return CGSizeMake(shortSide, longSide);
+    }
+    return landscapeLogicalCanvasOverride;
 }
 
 -(BOOL)shouldAutorotate

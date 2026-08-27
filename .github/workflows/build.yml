@@ -1,0 +1,44 @@
+name: Build PullOver X (roothide)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Theos
+        run: |
+          brew install ldid
+          git clone --recursive https://github.com/theos/theos.git $HOME/theos
+          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+
+      - name: Select Xcode
+        run: |
+          ls /Applications/ | grep Xcode
+          sudo xcode-select -s /Applications/Xcode_15.*.app/Contents/Developer || sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i iphoneos
+
+      - name: Build (roothide)
+        run: |
+          chmod +x build.sh
+          ./build.sh roothide release
+
+      - name: Collect artifact
+        run: |
+          mkdir -p output
+          find . -name "*.deb" -path "*packages*" -exec cp {} output/ \;
+          ls -la output/
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: pulloverx-roothide-deb
+          path: output/*.deb
+          if-no-files-found: error

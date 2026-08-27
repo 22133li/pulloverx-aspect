@@ -632,6 +632,15 @@ static NSString * const kPOSettingsChangedNotification = @"com.mlgm.pulloverx.se
     return @[POLocalizedString(@"Recent Apps", @"PullOverXPreferences"), POLocalizedString(@"Favorite Apps", @"PullOverXPreferences")];
 }
 
+// 小窗比例: 原始 / 16:9 / 5:3 / 4:3
+-(NSArray *)aspectKeysDataSource{
+    return @[@"original", @"16:9", @"5:3", @"4:3"];
+}
+
+-(NSArray *)aspectTitlesDataSource{
+    return @[@"Original", @"16:9", @"5:3", @"4:3"];
+}
+
 -(void)selectFavorites:(PSSpecifier *)specifier{
     QSFavoritesPickerController *c = [[QSFavoritesPickerController alloc] init];
     [self.navigationController pushViewController:c animated:YES];
