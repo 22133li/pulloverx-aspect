@@ -701,9 +701,11 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     } else if (aspectRatio > 0) {
         // 竖屏 + 用户指定比例(宽:高): 宽度保持原始卡片宽, 高度压缩为 宽/比例,
         // 得到画中画式的横条小窗(16:9/5:3/4:3)。原始模式走 else 分支不变。
+        // 竖窗方案: 宽度保持原始卡片宽, 高度 = 宽 x 比例 (16:9 选项 = 窗口 高:宽 = 16:9,
+        // 即比原始(约9:19.5)略矮的修长竖窗; 5:3/4:3 依次更接近方形)。
         CGFloat originalWidth = portraitCanvasWidth * chromeScale;
         contentLayoutWidth = originalWidth;
-        contentLayoutHeight = round(originalWidth / aspectRatio);
+        contentLayoutHeight = round(originalWidth * aspectRatio);
         // 托管逻辑画布同步: 宽保持设备短边, 高按卡片高/scale 反推,
         // 托管 App 按新高度重排内容而不变形。
         scale = chromeScale;
