@@ -814,18 +814,16 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         self->keyboardZoomBaseFrame = normalCardFrame;
         shadowView.frame = keyboardZoomContainer.bounds;
         if (_aspectContentTransformNeeded) {
-            // 比例模式: contentView 的渲染画布保持原始全高(避免 App scene 被压缩),
-            // 然后用 transform 等比缩小到窗口大小, App 内容完整可见(等比缩小版)。
-            // 关键: bounds=全高画布让 FBScene 全高渲染; frame=normalCardFrame 让父布局
-            // 把 contentView 放在卡片大小区域(transform 不影响父布局的 frame 解释,
-            // 只影响视觉); transform=scale 等比缩小内容到窗口大小。
+            // 比例模式(只缩高度): bounds=全宽全高画布让 FBScene 完整渲染 QQ 内容;
+            // frame=卡片大小让父布局正常定位; transform=(1, aspectScale) 只缩垂直方向,
+            // 宽度不变(避免在 keyboardZoomContainer 与右侧 handleScrollView 之间留空白)。
+            // 视觉效果: 窗口变矮, QQ 内容垂直等比缩小, 宽度满铺卡片区, 完整可见。
             CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
             CGFloat aspectScale = contentLayoutHeight / originalCardHeight;
             self.contentView.layer.anchorPoint = CGPointMake(0, 0);
-            self.contentView.bounds = CGRectMake(0, 0,
-                portraitCanvasWidth * chromeScale,
-                originalCardHeight);
-            self.contentView.transform = CGAffineTransformMakeScale(aspectScale, aspectScale);
+            CGFloat fullWidth = portraitCanvasWidth * chromeScale;
+            self.contentView.bounds = CGRectMake(0, 0, fullWidth, originalCardHeight);
+            self.contentView.transform = CGAffineTransformMakeScale(1.0, aspectScale);
             self.contentView.frame = keyboardZoomContainer.bounds;
         } else {
             self.contentView.transform = CGAffineTransformIdentity;
