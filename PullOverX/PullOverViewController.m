@@ -77,6 +77,8 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     CGFloat contentOffsetY;
     // 1.75: 比例模式激活标志 (让托管画布 = 小窗尺寸, App 重排铺满, 横竖屏都消除右侧空白)
     BOOL aspectModeActive;
+    // 1.77: 比例模式下托管画布的高度 (略矮于窗口, 让 App 完整画面落进小窗避免底部裁切)
+    CGFloat aspectReflowHeight;
     BOOL pendingOpenState;
     // 拖动结束后统一改用与点按相同的程序化滚动。该标记在滚动真正结束前
     // 阻止快捷切换菜单，避免卡片还残留在屏幕上时就被当作“已关闭”。
@@ -729,11 +731,13 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         contentLayoutWidth = originalWidth;                     // 窗口宽
         windowAspectHeight = aspectWindowHeight;                // 窗口视觉高
         contentLayoutHeight = aspectWindowHeight;               // 窗口高 (把手视口/卡片一致)
-        landscapeLogicalCanvasOverride = CGSizeMake(originalWidth, aspectWindowHeight);
-        // 1.76: App 按小窗尺寸重排铺满后, 部分 App 实际渲染面比逻辑画布略高
-        // (含安全区/刘海/Home 条), 会被窗口底部裁掉。这里对内容做轻微等比缩放
-        // (0.94, 可调), 让完整画面落进小窗, 无拉伸、无裁切; 横向仅轻微收窄。
-        scale = 0.94;                                           // 轻微等比缩放, 避免底部裁切
+        // 托管画布比窗口略矮 (0.87): App 完整画面落进小窗, 避免底部裁切; 横向仍铺满窗口宽。
+        // 0.87 为可调系数 —— 若底部仍裁切就调小, 若内容偏小/底部空隙大就调大。
+        aspectReflowHeight = round(aspectWindowHeight * 0.87);
+        landscapeLogicalCanvasOverride = CGSizeMake(originalWidth, aspectReflowHeight);
+        // 1.77: 回退 transform 缩放(1.76 的 0.94 会引入 X 定位偏移, 破坏横向)。
+        // 改由纯重排(上方 preferredSceneStackSize 用略矮画布)解决底部裁切, 不动 transform。
+        scale = 1.0;
         verticalScale = 1.0;
         aspectModeActive = YES;
         CGFloat screenScale = UIScreen.mainScreen.scale;
@@ -845,12 +849,15 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         keyboardZoomContainer.frame = normalCardFrame;
         self->keyboardZoomBaseFrame = normalCardFrame;
         shadowView.frame = keyboardZoomContainer.bounds;
-        // 1.75: 比例模式 -> App 已按小窗尺寸重排, contentView 直接铺满窗口, 无缩放变换
+        // 1.77: App 已按略矮画布重排 (aspectReflowHeight), contentView 用同尺寸并在窗口中垂直居中,
+        // 横向铺满, 底部不裁切, 无 transform 定位偏移。
         if (aspectRatio > 0 && !keyboardActiveForAspect) {
             self.contentView.layer.anchorPoint = CGPointMake(0.5, 0.5);
-            self.contentView.bounds = CGRectMake(0, 0, contentLayoutWidth, windowAspectHeight);
+            self.contentView.bounds = CGRectMake(0, 0, contentLayoutWidth, aspectReflowHeight);
             self.contentView.transform = CGAffineTransformIdentity;
-            self.contentView.frame = keyboardZoomContainer.bounds;
+            CGFloat yOff = (windowAspectHeight - aspectReflowHeight) / 2.0;
+            if (yOff < 0) yOff = 0;
+            self.contentView.frame = CGRectMake(0, yOff, contentLayoutWidth, aspectReflowHeight);
             self->contentOffsetY = 0;
         } else {
             self.contentView.transform = CGAffineTransformIdentity;
@@ -926,8 +933,9 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     // 不能只靠 landscapeLogicalCanvasOverride(仅横屏生效), 竖屏下也须返回小窗尺寸,
     // 否则 App 始终按设备竖屏画布渲染, 等比缩放必然产生右侧空白。
     if (aspectModeActive && !keyboardActiveForAspect &&
-        contentLayoutWidth > 0 && windowAspectHeight > 0) {
-        return CGSizeMake(contentLayoutWidth, windowAspectHeight);
+        contentLayoutWidth > 0 && aspectReflowHeight > 0) {
+        // 用略矮的托管画布 (aspectReflowHeight), 让 App 完整画面落进小窗避免底部裁切
+        return CGSizeMake(contentLayoutWidth, aspectReflowHeight);
     }
     // 新建的宿主视图需要和布局用同一个逻辑画布，托管内容才能填满卡片而不拉伸。
     // 单一真相源是 landscapeLogicalCanvasSizeForBounds:；竖屏用设备自身尺寸。
