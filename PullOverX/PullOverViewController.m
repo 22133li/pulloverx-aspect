@@ -731,9 +731,9 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         contentLayoutWidth = originalWidth;                     // 窗口宽
         windowAspectHeight = aspectWindowHeight;                // 窗口视觉高
         contentLayoutHeight = aspectWindowHeight;               // 窗口高 (把手视口/卡片一致)
-        // 托管画布比窗口略矮 (0.87): App 完整画面落进小窗, 避免底部裁切; 横向仍铺满窗口宽。
-        // 0.87 为可调系数 —— 若底部仍裁切就调小, 若内容偏小/底部空隙大就调大。
-        aspectReflowHeight = round(aspectWindowHeight * 0.87);
+        // 托管画布比窗口矮 (0.85): 让 App 完整画面落进小窗, 消除底部裁切与顶部空白。
+        // 0.85 为可调系数 —— 若底部仍裁切就调小, 若内容偏小/底部空隙大就调大。
+        aspectReflowHeight = round(aspectWindowHeight * 0.85);
         landscapeLogicalCanvasOverride = CGSizeMake(originalWidth, aspectReflowHeight);
         // 1.77: 回退 transform 缩放(1.76 的 0.94 会引入 X 定位偏移, 破坏横向)。
         // 改由纯重排(上方 preferredSceneStackSize 用略矮画布)解决底部裁切, 不动 transform。
@@ -849,15 +849,13 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         keyboardZoomContainer.frame = normalCardFrame;
         self->keyboardZoomBaseFrame = normalCardFrame;
         shadowView.frame = keyboardZoomContainer.bounds;
-        // 1.77: App 已按略矮画布重排 (aspectReflowHeight), contentView 用同尺寸并在窗口中垂直居中,
-        // 横向铺满, 底部不裁切, 无 transform 定位偏移。
+        // 1.78: App 按略矮画布重排 (aspectReflowHeight), contentView 顶对齐铺满窗口宽,
+        // 无顶部空白、底部不裁切、无 transform 定位偏移。
         if (aspectRatio > 0 && !keyboardActiveForAspect) {
             self.contentView.layer.anchorPoint = CGPointMake(0.5, 0.5);
             self.contentView.bounds = CGRectMake(0, 0, contentLayoutWidth, aspectReflowHeight);
             self.contentView.transform = CGAffineTransformIdentity;
-            CGFloat yOff = (windowAspectHeight - aspectReflowHeight) / 2.0;
-            if (yOff < 0) yOff = 0;
-            self.contentView.frame = CGRectMake(0, yOff, contentLayoutWidth, aspectReflowHeight);
+            self.contentView.frame = CGRectMake(0, 0, contentLayoutWidth, aspectReflowHeight);
             self->contentOffsetY = 0;
         } else {
             self.contentView.transform = CGAffineTransformIdentity;
