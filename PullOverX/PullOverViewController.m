@@ -730,7 +730,10 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         windowAspectHeight = aspectWindowHeight;                // 窗口视觉高
         contentLayoutHeight = aspectWindowHeight;               // 窗口高 (把手视口/卡片一致)
         landscapeLogicalCanvasOverride = CGSizeMake(originalWidth, aspectWindowHeight);
-        scale = 1.0;                                            // App 已按小窗尺寸渲染, 不额外缩放
+        // 1.76: App 按小窗尺寸重排铺满后, 部分 App 实际渲染面比逻辑画布略高
+        // (含安全区/刘海/Home 条), 会被窗口底部裁掉。这里对内容做轻微等比缩放
+        // (0.94, 可调), 让完整画面落进小窗, 无拉伸、无裁切; 横向仅轻微收窄。
+        scale = 0.94;                                           // 轻微等比缩放, 避免底部裁切
         verticalScale = 1.0;
         aspectModeActive = YES;
         CGFloat screenScale = UIScreen.mainScreen.scale;
