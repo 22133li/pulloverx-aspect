@@ -75,6 +75,8 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     CGFloat windowAspectHeight;
     // 1.72: contentView 在 keyboardZoomContainer 内的 Y 偏移 (用户拖动看完整内容)
     CGFloat contentOffsetY;
+    // 1.75: 比例模式激活标志 (让托管画布 = 小窗尺寸, App 重排铺满, 横竖屏都消除右侧空白)
+    BOOL aspectModeActive;
     BOOL pendingOpenState;
     // 拖动结束后统一改用与点按相同的程序化滚动。该标记在滚动真正结束前
     // 阻止快捷切换菜单，避免卡片还残留在屏幕上时就被当作“已关闭”。
@@ -718,25 +720,24 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         contentLayoutWidth = round(logicalCanvas.width * scale * screenScale) / screenScale;
         contentLayoutHeight = round(availableCardHeight * screenScale) / screenScale;
     } else if (aspectRatio > 0 && !keyboardActiveForAspect) {
-        // 1.73: 等比缩放 - 完整可见, 无压扁, 窗口尺寸不变
-        // - 外框 = originalWidth x (originalWidth*aspectRatio) 维持原版 PullOverX 尺寸
-        // - FBScene 渲染 = 原版全高画布, App 完整排版不被压缩
-        // - contentView.transform = scale(v, v) 等比缩放到窗口高度
-        //   -> X、Y 同比例, 字体不再压扁; 整幅画面一次完整可见
+        // 1.75: App 按小窗尺寸重排铺满, 消除右侧空白/居中/无压扁/无裁切
+        // - 外框 = originalWidth x (originalWidth*aspectRatio), 维持原版 PullOverX 尺寸不变
+        // - 托管画布 (preferredSceneStackSize) = 小窗尺寸 -> App 内容重排无缝铺满小窗,
+        //   字体不变扁、无右侧空白、滚动条/把手贴合内容边缘
         CGFloat originalWidth = portraitCanvasWidth * chromeScale;
-        CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
-        contentLayoutWidth = originalWidth;                     // 窗口宽 = 原版宽
-        windowAspectHeight = round(originalWidth * aspectRatio); // 窗口视觉高 (原版 PullOverX 高度形态)
-        contentLayoutHeight = windowAspectHeight;               // 把手视口/窗口高度
-        scale = chromeScale;
-        landscapeLogicalCanvasOverride = CGSizeZero;            // 原版画布, 全高渲染
-        // 等比缩放系数 = 窗口高度 / 原版高度 (X、Y 同用, 避免压扁)
-        verticalScale = contentLayoutHeight / originalCardHeight;
+        CGFloat aspectWindowHeight = round(originalWidth * aspectRatio);
+        contentLayoutWidth = originalWidth;                     // 窗口宽
+        windowAspectHeight = aspectWindowHeight;                // 窗口视觉高
+        contentLayoutHeight = aspectWindowHeight;               // 窗口高 (把手视口/卡片一致)
+        landscapeLogicalCanvasOverride = CGSizeMake(originalWidth, aspectWindowHeight);
+        scale = 1.0;                                            // App 已按小窗尺寸渲染, 不额外缩放
+        verticalScale = 1.0;
+        aspectModeActive = YES;
         CGFloat screenScale = UIScreen.mainScreen.scale;
         contentLayoutWidth = round(contentLayoutWidth * screenScale) / screenScale;
         contentLayoutHeight = round(contentLayoutHeight * screenScale) / screenScale;
         windowAspectHeight = round(windowAspectHeight * screenScale) / screenScale;
-        _aspectContentTransformNeeded = YES;
+        _aspectContentTransformNeeded = NO;
     } else {
         // 竖屏保留 chromeScale 边距以避开非安全区的上下（刘海 / home 条）。
         // 卡片宽度 = 纯内容宽（画布宽 × chromeScale），不在此扣间距——离屏
@@ -744,6 +745,7 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         // CONTENT_EDGE_GAP 会把间距重复计入、压窄内容，导致设置页右侧滚动条
         // 被裁掉一条。
         landscapeLogicalCanvasOverride = CGSizeZero; // 原始比例: 清除托管画布覆盖
+        aspectModeActive = NO;
         CGFloat portraitCardWidth = portraitCanvasWidth * chromeScale;
         CGFloat portraitCardHeight = portraitCanvasHeight * chromeScale;
         CGFloat availableCardHeight = CGRectGetHeight(bounds) * chromeScale;
@@ -840,23 +842,12 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         keyboardZoomContainer.frame = normalCardFrame;
         self->keyboardZoomBaseFrame = normalCardFrame;
         shadowView.frame = keyboardZoomContainer.bounds;
-        // 1.73: 等比缩放 - 完整画面一次可见, 无压扁, 窗口尺寸不变
+        // 1.75: 比例模式 -> App 已按小窗尺寸重排, contentView 直接铺满窗口, 无缩放变换
         if (aspectRatio > 0 && !keyboardActiveForAspect) {
-            CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
-            self.contentView.layer.anchorPoint = CGPointMake(0, 0);
-            self.contentView.bounds = CGRectMake(0, 0,
-                portraitCanvasWidth * chromeScale,
-                originalCardHeight);
-            // 等比缩放 (X、Y 同用 verticalScale), 字体不变扁, 高度正好填满窗口
-            self.contentView.transform = CGAffineTransformMakeScale(verticalScale, verticalScale);
-            // 等比后内容宽 < 窗口宽, 水平居中。
-            // 关键: contentView 已带非 identity transform, 若在此再用 frame= 赋值,
-            // UIView 的 frame-setter 会用逆变换反推 position, 把画面算偏(挤到左侧、
-            // 右侧露黑边)。必须直接设 layer.position(不受逆变换影响)。
-            CGFloat scaledW = contentLayoutWidth * verticalScale;
-            CGFloat positionX = (contentLayoutWidth - scaledW) / 2.0;
-            if (positionX < 0) positionX = 0;
-            self.contentView.layer.position = CGPointMake(positionX, 0);
+            self.contentView.layer.anchorPoint = CGPointMake(0.5, 0.5);
+            self.contentView.bounds = CGRectMake(0, 0, contentLayoutWidth, windowAspectHeight);
+            self.contentView.transform = CGAffineTransformIdentity;
+            self.contentView.frame = keyboardZoomContainer.bounds;
             self->contentOffsetY = 0;
         } else {
             self.contentView.transform = CGAffineTransformIdentity;
@@ -928,6 +919,13 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
 }
 
 -(CGSize)contextManagerPreferredSceneStackSize:(id)manager{
+    // 比例模式: 托管画布 = 小窗尺寸, App 内容重排无缝铺满 (横竖屏一致)。
+    // 不能只靠 landscapeLogicalCanvasOverride(仅横屏生效), 竖屏下也须返回小窗尺寸,
+    // 否则 App 始终按设备竖屏画布渲染, 等比缩放必然产生右侧空白。
+    if (aspectModeActive && !keyboardActiveForAspect &&
+        contentLayoutWidth > 0 && windowAspectHeight > 0) {
+        return CGSizeMake(contentLayoutWidth, windowAspectHeight);
+    }
     // 新建的宿主视图需要和布局用同一个逻辑画布，托管内容才能填满卡片而不拉伸。
     // 单一真相源是 landscapeLogicalCanvasSizeForBounds:；竖屏用设备自身尺寸。
     CGRect bounds = self.view.bounds;
