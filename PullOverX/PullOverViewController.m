@@ -705,16 +705,17 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         contentLayoutWidth = round(logicalCanvas.width * scale * screenScale) / screenScale;
         contentLayoutHeight = round(availableCardHeight * screenScale) / screenScale;
     } else if (aspectSize.width > 0 && !keyboardActiveForAspect) {
-        // 1.66: 精确尺寸 + 画布覆盖 (无 transform, 文字不变形)
-        // 窗口 = aspectSize (精确尺寸); landscapeLogicalCanvasOverride 也设为 aspectSize,
-        // 让 FBScene 按精确尺寸的画布渲染 App; App 自身按新画布重排 (类似 iPad split view),
-        // 文字按 1:1 比例正常显示, 不会被 transform 压扁。
-        // chromeScale 留 1 (画布与窗口同尺寸, 不再缩)。
-        contentLayoutWidth = aspectSize.width;
-        contentLayoutHeight = aspectSize.height;
-        scale = 1.0;
-        // 画布覆盖: 宽高都用精确尺寸, App scene 按此渲染
-        landscapeLogicalCanvasOverride = aspectSize;
+        // 1.67: 改回"第一版"竖窗比例 (1.56 风格)
+        // 窗口宽度 = 原始 chromeScale 宽 (~402pt), 高度 = width * aspectRatio (16:9/5:3/4:3)
+        // -> 16:9 h=715, 5:3 h=670, 4:3 h=536 (比精确尺寸版更高, 像竖窗)
+        // 画布不动 (CGSizeZero), FBScene 完整渲染, QQ 内容可见不被压扁
+        // 无 transform, 文字不变形
+        CGFloat originalWidth = portraitCanvasWidth * chromeScale;
+        CGFloat aspectRatioForHeight = (CGFloat)aspectSize.height / aspectSize.width;
+        contentLayoutWidth = originalWidth;
+        contentLayoutHeight = round(originalWidth * aspectRatioForHeight);
+        scale = chromeScale;
+        landscapeLogicalCanvasOverride = CGSizeZero;
         CGFloat screenScale = UIScreen.mainScreen.scale;
         contentLayoutWidth = round(contentLayoutWidth * screenScale) / screenScale;
         contentLayoutHeight = round(contentLayoutHeight * screenScale) / screenScale;
