@@ -681,8 +681,8 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     } else if ([aspectSetting isKindOfClass:NSNumber.class]) {
         aspectIndex = [aspectSetting integerValue];
     }
-    // aspectIndex (1=16:9, 2=5:3, 3=4:3) -> 用户指定的精确卡片尺寸(单位 pt)
-    // 原始走 else 分支, 保持 portraitCanvasWidth x portraitCanvasHeight (chromeScale 缩放)
+    // 1.6 改版: 用户指定的精确卡片尺寸 (pt 单位), 不再用比例计算
+    // 16:9 = 381x322, 5:3 = 382x302, 4:3 = 378x247
     CGSize aspectSize = CGSizeZero;
     switch (aspectIndex) {
         case 1: aspectSize = CGSizeMake(381.0, 322.0); break;  // 16:9
@@ -690,7 +690,8 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         case 3: aspectSize = CGSizeMake(378.0, 247.0); break;  // 4:3
         default: aspectSize = CGSizeZero; break;
     }
-    NSLog(@"[PullOverX] cardAspect=%@ index=%ld size=%@", aspectSetting, (long)aspectIndex, NSStringFromCGSize(aspectSize));
+    CGFloat aspectRatio = aspectSize.height > 0 ? (CGFloat)aspectSize.height / aspectSize.width : 0;
+    NSLog(@"[PullOverX] cardAspect=%@ index=%ld ratio=%.3f", aspectSetting, (long)aspectIndex, aspectRatio);
     if (isLandscape) {
         // 横屏上下是手机侧边框（直线无缺口），卡片高度 = 屏幕高度减去上下各
         // 5pt 间隙即可，无需避开非安全区。托管画布 = 本机真实竖屏尺寸，把
@@ -704,9 +705,10 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         contentLayoutWidth = round(logicalCanvas.width * scale * screenScale) / screenScale;
         contentLayoutHeight = round(availableCardHeight * screenScale) / screenScale;
     } else if (aspectSize.width > 0 && !keyboardActiveForAspect) {
-        // 竖窗方案(精确尺寸): 直接使用用户指定的宽 x 高 (pt 单位)。
-        // keyboardZoomContainer.frame = 这个精确尺寸 -> contentView = 同大小
-        // -> FBScene 按此 frame 渲染 App 内容(App 自身适配新窗口大小, 不做额外 transform)。
+        // 1.6 改版: 精确尺寸 + vertical-only transform
+        // 窗口 = 用户精确尺寸; contentView 视觉高度 = 精确高度 (transform 缩),
+        // 宽度 = 原始全宽 (不变, 避免右边留空白); FBScene 按全宽全高渲染,
+        // QQ 完整可见 (垂直方向等比缩小).
         contentLayoutWidth = aspectSize.width;
         contentLayoutHeight = aspectSize.height;
         scale = chromeScale;
@@ -714,7 +716,7 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         CGFloat screenScale = UIScreen.mainScreen.scale;
         contentLayoutWidth = round(contentLayoutWidth * screenScale) / screenScale;
         contentLayoutHeight = round(contentLayoutHeight * screenScale) / screenScale;
-        NSLog(@"[PullOverX] aspect-mode final contentLayout=%fx%f bounds=%@", contentLayoutWidth, contentLayoutHeight, NSStringFromCGRect(bounds));
+        _aspectContentTransformNeeded = YES;
     } else {
         // 竖屏保留 chromeScale 边距以避开非安全区的上下（刘海 / home 条）。
         // 卡片宽度 = 纯内容宽（画布宽 × chromeScale），不在此扣间距——离屏
@@ -816,13 +818,23 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         keyboardZoomContainer.transform = CGAffineTransformIdentity;
         keyboardZoomContainer.frame = normalCardFrame;
         self->keyboardZoomBaseFrame = normalCardFrame;
-        NSLog(@"[PullOverX] normalCardFrame=%@ bounds=%@", NSStringFromCGRect(normalCardFrame), NSStringFromCGRect(bounds));
         shadowView.frame = keyboardZoomContainer.bounds;
-        // 比例模式与原始模式同样布局: contentView 跟着 keyboardZoomContainer.bounds,
-        // 不再 transform/不修改 bounds。窗口尺寸完全由 normalCardFrame (=精确 aspectSize)
-        // 决定, 16:9=381x322, 5:3=382x302, 4:3=378x247。
-        self.contentView.transform = CGAffineTransformIdentity;
-        self.contentView.frame = keyboardZoomContainer.bounds;
+        if (_aspectContentTransformNeeded) {
+            // 比例模式(只缩高度): bounds=全宽全高画布让 FBScene 完整渲染 QQ 内容;
+            // frame=卡片大小让父布局正常定位; transform=(1, aspectScale) 只缩垂直方向,
+            // 宽度不变(避免在 keyboardZoomContainer 与右侧 handleScrollView 之间留空白)。
+            // 视觉效果: 窗口变矮, QQ 内容垂直等比缩小, 宽度满铺卡片区, 完整可见。
+            CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
+            CGFloat aspectScale = contentLayoutHeight / originalCardHeight;
+            self.contentView.layer.anchorPoint = CGPointMake(0, 0);
+            CGFloat fullWidth = portraitCanvasWidth * chromeScale;
+            self.contentView.bounds = CGRectMake(0, 0, fullWidth, originalCardHeight);
+            self.contentView.transform = CGAffineTransformMakeScale(1.0, aspectScale);
+            self.contentView.frame = keyboardZoomContainer.bounds;
+        } else {
+            self.contentView.transform = CGAffineTransformIdentity;
+            self.contentView.frame = keyboardZoomContainer.bounds;
+        }
         shadowView.layer.shadowPath = [UIBezierPath bezierPathWithRoundedRect:shadowView.bounds
                                                                   cornerRadius:CONTENT_CORNER_RADIUS].CGPath;
     }];
