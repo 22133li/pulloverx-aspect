@@ -199,7 +199,7 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     UIPanGestureRecognizer *vpan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handleAspectVerticalPan:)];
     vpan.delegate = (id<UIGestureRecognizerDelegate>)self;
     [self.contentView addGestureRecognizer:vpan];
-    self.aspectVerticalPan = vpan;
+    self->aspectVerticalPan = vpan;
     if (@available(iOS 13.0, *)) {
         self.contentView.layer.cornerCurve = kCACornerCurveContinuous;
     }
@@ -855,11 +855,11 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
                 originalCardHeight);
             self.contentView.transform = CGAffineTransformIdentity;
             self.contentView.frame = keyboardZoomContainer.bounds;
-            self.contentOffsetY = 0;
+            self->contentOffsetY = 0;
         } else {
             self.contentView.transform = CGAffineTransformIdentity;
             self.contentView.frame = keyboardZoomContainer.bounds;
-            self.contentOffsetY = 0;
+            self->contentOffsetY = 0;
         }
         shadowView.layer.shadowPath = [UIBezierPath bezierPathWithRoundedRect:shadowView.bounds
                                                                   cornerRadius:CONTENT_CORNER_RADIUS].CGPath;
@@ -1947,14 +1947,14 @@ externalSceneStackDidChange:(UIView *)sceneStack
 -(void)handleAspectVerticalPan:(UIPanGestureRecognizer *)pan{
     if (aspectRatio <= 0 || keyboardActiveForAspect) return;
     CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
-    CGFloat windowH = windowAspectHeight;
+    CGFloat windowH = self->windowAspectHeight;
     CGFloat maxOffset = originalCardHeight - windowH;
     if (maxOffset <= 0) return;
 
     CGPoint translation = [pan translationInView:self.contentView];
-    CGFloat newOffset = self.contentOffsetY - translation.y;
+    CGFloat newOffset = self->contentOffsetY - translation.y;
     newOffset = MIN(MAX(0, newOffset), maxOffset);
-    self.contentOffsetY = newOffset;
+    self->contentOffsetY = newOffset;
     [pan setTranslation:CGPointZero inView:self.contentView];
 
     CGRect frame = self.contentView.frame;
@@ -1965,7 +1965,7 @@ externalSceneStackDidChange:(UIView *)sceneStack
         CGFloat snapThreshold = maxOffset / 2.0;
         CGFloat target = (newOffset > snapThreshold) ? maxOffset : 0;
         [UIView animateWithDuration:0.25 animations:^{
-            self.contentOffsetY = target;
+            self->contentOffsetY = target;
             CGRect f = self.contentView.frame;
             f.origin.y = -target;
             self.contentView.frame = f;
