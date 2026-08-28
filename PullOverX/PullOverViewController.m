@@ -14,6 +14,8 @@
 #define CONTENT_CORNER_RADIUS 20
 #define CONTENT_SHADOW_OPACITY 0.28
 #define CONTENT_SHADOW_FADE_DISTANCE 12.0
+// 比例模式下托管画布高度相对窗口高度的系数 (略矮, 让 App 完整画面落进小窗避免底部裁切)
+#define ASPECT_CANVAS_HEIGHT_FACTOR 0.85
 #define CLOSED_CONTENT_OFFSET_EPSILON 0.5
 #define HOSTING_FAST_RETRY_LIMIT 12
 #define PO_KEYBOARD_ZOOM_REQUESTED_SCALE 1.60
@@ -733,7 +735,7 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         contentLayoutHeight = aspectWindowHeight;               // 窗口高 (把手视口/卡片一致)
         // 托管画布比窗口矮 (0.85): 让 App 完整画面落进小窗, 消除底部裁切与顶部空白。
         // 0.85 为可调系数 —— 若底部仍裁切就调小, 若内容偏小/底部空隙大就调大。
-        aspectReflowHeight = round(aspectWindowHeight * 0.85);
+        aspectReflowHeight = round(aspectWindowHeight * ASPECT_CANVAS_HEIGHT_FACTOR);
         landscapeLogicalCanvasOverride = CGSizeMake(originalWidth, aspectReflowHeight);
         // 1.77: 回退 transform 缩放(1.76 的 0.94 会引入 X 定位偏移, 破坏横向)。
         // 改由纯重排(上方 preferredSceneStackSize 用略矮画布)解决底部裁切, 不动 transform。
@@ -928,12 +930,12 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
 
 -(CGSize)contextManagerPreferredSceneStackSize:(id)manager{
     // 比例模式: 托管画布 = 小窗尺寸, App 内容重排无缝铺满 (横竖屏一致)。
-    // 不能只靠 landscapeLogicalCanvasOverride(仅横屏生效), 竖屏下也须返回小窗尺寸,
-    // 否则 App 始终按设备竖屏画布渲染, 等比缩放必然产生右侧空白。
-    if (aspectModeActive && !keyboardActiveForAspect &&
-        contentLayoutWidth > 0 && aspectReflowHeight > 0) {
-        // 用略矮的托管画布 (aspectReflowHeight), 让 App 完整画面落进小窗避免底部裁切
-        return CGSizeMake(contentLayoutWidth, aspectReflowHeight);
+    // 关键修复: 直接按当前设置+设备尺寸实时计算 (aspectHostCanvasSize), 不依赖布局后的
+    // ivar —— scene 栈在宿主时只创建一次, 若此刻 ivar 为 0, ContextHostManager 会回退成
+    // 整屏尺寸, App 便按整屏渲染导致底部/右侧被裁 (1.75~1.78 改系数都没用的根因)。
+    CGSize aspectCanvas = [self aspectHostCanvasSize];
+    if (aspectCanvas.width > 0 && aspectCanvas.height > 0 && !keyboardActiveForAspect) {
+        return aspectCanvas;
     }
     // 新建的宿主视图需要和布局用同一个逻辑画布，托管内容才能填满卡片而不拉伸。
     // 单一真相源是 landscapeLogicalCanvasSizeForBounds:；竖屏用设备自身尺寸。
@@ -944,6 +946,40 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     CGFloat shortSide = MIN(CGRectGetWidth(bounds), CGRectGetHeight(bounds));
     CGFloat longSide = MAX(CGRectGetWidth(bounds), CGRectGetHeight(bounds));
     return CGSizeMake(shortSide, longSide);
+}
+
+// 按当前比例设置 + 设备尺寸实时计算比例模式的托管画布尺寸 (width x reflowHeight)。
+// 不依赖 applyLayout 之后的 ivar, 因此 scene 栈在宿主创建时(可能早于布局)也能拿到
+// 正确的小窗画布尺寸, 避免回退成整屏尺寸。非比例/原始模式返回 CGSizeZero。
+-(CGSize)aspectHostCanvasSize{
+    id aspectSetting = [POApplicationHelper settings][@"cardAspect"];
+    NSInteger aspectIndex = -1;
+    if ([aspectSetting isKindOfClass:NSString.class]) {
+        NSString *str = aspectSetting;
+        if ([str isEqualToString:@"16:9"]) aspectIndex = 1;
+        else if ([str isEqualToString:@"5:3"]) aspectIndex = 2;
+        else if ([str isEqualToString:@"4:3"]) aspectIndex = 3;
+        else if ([str isEqualToString:@"original"]) aspectIndex = 0;
+        else if (str.integerValue >= 0 && str.integerValue <= 3) aspectIndex = str.integerValue;
+    } else if ([aspectSetting isKindOfClass:NSNumber.class]) {
+        aspectIndex = [aspectSetting integerValue];
+    }
+    if (aspectIndex <= 0) return CGSizeZero;
+    CGFloat ratio = 0;
+    switch (aspectIndex) {
+        case 1: ratio = 16.0 / 9.0; break;
+        case 2: ratio = 5.0 / 3.0; break;
+        case 3: ratio = 4.0 / 3.0; break;
+        default: return CGSizeZero;
+    }
+    CGRect b = self.view.bounds;
+    CGFloat shortSide = MIN(CGRectGetWidth(b), CGRectGetHeight(b));
+    CGFloat screenScale = UIScreen.mainScreen.scale;
+    CGFloat rail = [self handleRailWidth];
+    CGFloat w = round((shortSide - rail) * screenScale) / screenScale; // 窗口/画布宽
+    CGFloat fullH = w * ratio;                                        // 窗口视觉高
+    CGFloat reflowH = round(fullH * ASPECT_CANVAS_HEIGHT_FACTOR * screenScale) / screenScale; // 托管画布高(略矮)
+    return CGSizeMake(w, reflowH);
 }
 
 -(UIInterfaceOrientation)contextManagerPreferredHostedInterfaceOrientation:(id)manager{
