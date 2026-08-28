@@ -849,13 +849,14 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
                 originalCardHeight);
             // 等比缩放 (X、Y 同用 verticalScale), 字体不变扁, 高度正好填满窗口
             self.contentView.transform = CGAffineTransformMakeScale(verticalScale, verticalScale);
-            // 等比后内容宽 < 窗口宽, 水平居中
+            // 等比后内容宽 < 窗口宽, 水平居中。
+            // 关键: contentView 已带非 identity transform, 若在此再用 frame= 赋值,
+            // UIView 的 frame-setter 会用逆变换反推 position, 把画面算偏(挤到左侧、
+            // 右侧露黑边)。必须直接设 layer.position(不受逆变换影响)。
             CGFloat scaledW = contentLayoutWidth * verticalScale;
-            CGFloat x = (contentLayoutWidth - scaledW) / 2.0;
-            if (x < 0) x = 0;
-            self.contentView.frame = CGRectMake(x, 0,
-                portraitCanvasWidth * chromeScale,
-                originalCardHeight);
+            CGFloat positionX = (contentLayoutWidth - scaledW) / 2.0;
+            if (positionX < 0) positionX = 0;
+            self.contentView.layer.position = CGPointMake(positionX, 0);
             self->contentOffsetY = 0;
         } else {
             self.contentView.transform = CGAffineTransformIdentity;
