@@ -71,8 +71,6 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     BOOL _aspectContentTransformNeeded;
     // 1.71: vertical-only transform 缩放比例 (1.72: 强制为 1.0, 不缩)
     CGFloat verticalScale;
-    // 1.72: 窗口视觉高度 (按比例算, 1.68 形态不变)
-    CGFloat windowAspectHeight;
     // 1.72: contentView 在 keyboardZoomContainer 内的 Y 偏移 (用户拖动看完整内容)
     CGFloat contentOffsetY;
     BOOL pendingOpenState;
@@ -826,7 +824,7 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     // offset 为 0 时卡片位于实体右边缘外；最大 offset 时其右侧保留安全区加 5pt 间隙，
     // 在 iPad、8 Plus 和刘海设备上均适用。container 的 frame 是 scrollView 内容坐标，
     // contentView/shadowView 则只使用 container 的局部 bounds。
-    CGFloat cardH = (aspectRatio > 0 && !keyboardActiveForAspect) ? windowAspectHeight : contentLayoutHeight;
+    CGFloat cardH = contentLayoutHeight;
     CGRect normalCardFrame = CGRectMake(CGRectGetWidth(bounds), 0, contentLayoutWidth, cardH);
     normalCardFrame.origin.y = CGRectGetMidY(bounds) - CGRectGetHeight(normalCardFrame) / 2.0;
     CGFloat screenScale = UIScreen.mainScreen.scale;
