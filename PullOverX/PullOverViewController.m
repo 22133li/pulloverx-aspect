@@ -69,8 +69,12 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     // 键盘可见期间比例窗口临时恢复原始比例(键盘收起后恢复比例窗)。
     BOOL keyboardActiveForAspect;
     BOOL _aspectContentTransformNeeded;
-    // 1.71: vertical-only transform 缩放比例 (只缩 Y 方向)
+    // 1.71: vertical-only transform 缩放比例 (1.72: 强制为 1.0, 不缩)
     CGFloat verticalScale;
+    // 1.72: 窗口视觉高度 (按比例算, 1.68 形态不变)
+    CGFloat windowAspectHeight;
+    // 1.72: contentView 在 keyboardZoomContainer 内的 Y 偏移 (用户拖动看完整内容)
+    CGFloat contentOffsetY;
     BOOL pendingOpenState;
     // 拖动结束后统一改用与点按相同的程序化滚动。该标记在滚动真正结束前
     // 阻止快捷切换菜单，避免卡片还残留在屏幕上时就被当作“已关闭”。
@@ -191,6 +195,11 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     self.contentView = [[UIView alloc] initWithFrame:CGRectZero];
     self.contentView.backgroundColor = [UIColor secondarySystemBackgroundColor];
     self.contentView.layer.cornerRadius = CONTENT_CORNER_RADIUS;
+    // 1.72: 比例模式垂直拖动手势 (用户可在小窗内上下滑动看完整 App 内容)
+    UIPanGestureRecognizer *vpan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handleAspectVerticalPan:)];
+    vpan.delegate = (id<UIGestureRecognizerDelegate>)self;
+    [self.contentView addGestureRecognizer:vpan];
+    self.aspectVerticalPan = vpan;
     if (@available(iOS 13.0, *)) {
         self.contentView.layer.cornerCurve = kCACornerCurveContinuous;
     }
@@ -714,23 +723,24 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         contentLayoutWidth = round(logicalCanvas.width * scale * screenScale) / screenScale;
         contentLayoutHeight = round(availableCardHeight * screenScale) / screenScale;
     } else if (aspectRatio > 0 && !keyboardActiveForAspect) {
-        // 1.71: 1.68 外框形态 + 原版 FBScene 完整渲染 + vertical-only transform
-        // - 外框高度 = originalWidth * aspectRatio (1.68 形态: 700/657/525)
-        // - FBScene 渲染 = 原版 (originalWidth x originalCardHeight=852)
-        //   -> App 内容按原版排版, 完整不被压缩
-        // - contentView.transform = scale(1, h_scale) 只缩 Y 方向适配窗口高度
-        //   -> "允许内部轻微缩放", 文字轻微压扁但不变形严重
+        // 1.72: 不缩不压扁 - 文字保持原比例不变形
+        // - 外框高度 = originalWidth * aspectRatio (1.68 形态 700/657/525, 不变)
+        // - contentView.bounds = 全高原版 (852) -> FBScene 按原版画布渲染, App 完整
+        // - verticalScale = 1.0 -> 文字不变形
+        // - 用户可在 contentView 内上下拖动 (手势) 看完整 App 内容
         CGFloat originalWidth = portraitCanvasWidth * chromeScale;
         CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
         contentLayoutWidth = originalWidth;
-        contentLayoutHeight = round(originalWidth * aspectRatio); // 窗口视觉高度
+        contentLayoutHeight = originalCardHeight; // 全高, 用于 frame
         scale = chromeScale;
-        landscapeLogicalCanvasOverride = CGSizeZero; // 原版画布, FBScene 全高渲染
-        // transform 缩放比例 = 窗口高度 / 原版高度
-        verticalScale = contentLayoutHeight / originalCardHeight;
+        landscapeLogicalCanvasOverride = CGSizeZero;
+        verticalScale = 1.0; // 不缩
+        // 窗口外框视觉高度 (用于 normalCardFrame)
+        windowAspectHeight = round(originalWidth * aspectRatio);
         CGFloat screenScale = UIScreen.mainScreen.scale;
         contentLayoutWidth = round(contentLayoutWidth * screenScale) / screenScale;
         contentLayoutHeight = round(contentLayoutHeight * screenScale) / screenScale;
+        windowAspectHeight = round(windowAspectHeight * screenScale) / screenScale;
         _aspectContentTransformNeeded = YES;
     } else {
         // 竖屏保留 chromeScale 边距以避开非安全区的上下（刘海 / home 条）。
@@ -824,7 +834,8 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     // offset 为 0 时卡片位于实体右边缘外；最大 offset 时其右侧保留安全区加 5pt 间隙，
     // 在 iPad、8 Plus 和刘海设备上均适用。container 的 frame 是 scrollView 内容坐标，
     // contentView/shadowView 则只使用 container 的局部 bounds。
-    CGRect normalCardFrame = CGRectMake(CGRectGetWidth(bounds), 0, contentLayoutWidth, contentLayoutHeight);
+    CGFloat cardH = (aspectRatio > 0 && !keyboardActiveForAspect) ? windowAspectHeight : contentLayoutHeight;
+    CGRect normalCardFrame = CGRectMake(CGRectGetWidth(bounds), 0, contentLayoutWidth, cardH);
     normalCardFrame.origin.y = CGRectGetMidY(bounds) - CGRectGetHeight(normalCardFrame) / 2.0;
     CGFloat screenScale = UIScreen.mainScreen.scale;
     normalCardFrame.origin.y = round(normalCardFrame.origin.y * screenScale) / screenScale;
@@ -834,19 +845,21 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         keyboardZoomContainer.frame = normalCardFrame;
         self->keyboardZoomBaseFrame = normalCardFrame;
         shadowView.frame = keyboardZoomContainer.bounds;
-        // 1.71: 比例模式 transform 只缩 Y (轻微), contentView.bounds = 原版全高
-        // FBScene 按原版全高渲染, 内容完整; transform 轻微压缩 Y 适配窗口高度
+        // 1.72: 不缩, contentView = 全高原版, transform=identity, 顶部对齐
+        // 用户拖动 contentOffsetY 看完整内容
         if (aspectRatio > 0 && !keyboardActiveForAspect) {
             CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
             self.contentView.layer.anchorPoint = CGPointMake(0, 0);
             self.contentView.bounds = CGRectMake(0, 0,
                 portraitCanvasWidth * chromeScale,
                 originalCardHeight);
-            self.contentView.transform = CGAffineTransformMakeScale(1.0, verticalScale);
+            self.contentView.transform = CGAffineTransformIdentity;
             self.contentView.frame = keyboardZoomContainer.bounds;
+            self.contentOffsetY = 0;
         } else {
             self.contentView.transform = CGAffineTransformIdentity;
             self.contentView.frame = keyboardZoomContainer.bounds;
+            self.contentOffsetY = 0;
         }
         shadowView.layer.shadowPath = [UIBezierPath bezierPathWithRoundedRect:shadowView.bounds
                                                                   cornerRadius:CONTENT_CORNER_RADIUS].CGPath;
@@ -1928,5 +1941,36 @@ externalSceneStackDidChange:(UIView *)sceneStack
     [self reevaluateKeyboardZoomAnimated:YES];
 }
 
+
+
+// 1.72: 比例模式垂直拖动 - 让用户在小窗内上下滑动看完整内容
+-(void)handleAspectVerticalPan:(UIPanGestureRecognizer *)pan{
+    if (aspectRatio <= 0 || keyboardActiveForAspect) return;
+    CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
+    CGFloat windowH = windowAspectHeight;
+    CGFloat maxOffset = originalCardHeight - windowH;
+    if (maxOffset <= 0) return;
+
+    CGPoint translation = [pan translationInView:self.contentView];
+    CGFloat newOffset = self.contentOffsetY - translation.y;
+    newOffset = MIN(MAX(0, newOffset), maxOffset);
+    self.contentOffsetY = newOffset;
+    [pan setTranslation:CGPointZero inView:self.contentView];
+
+    CGRect frame = self.contentView.frame;
+    frame.origin.y = -newOffset;
+    self.contentView.frame = frame;
+
+    if (pan.state == UIGestureRecognizerStateEnded) {
+        CGFloat snapThreshold = maxOffset / 2.0;
+        CGFloat target = (newOffset > snapThreshold) ? maxOffset : 0;
+        [UIView animateWithDuration:0.25 animations:^{
+            self.contentOffsetY = target;
+            CGRect f = self.contentView.frame;
+            f.origin.y = -target;
+            self.contentView.frame = f;
+        }];
+    }
+}
 
 @end
