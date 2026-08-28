@@ -716,20 +716,19 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         contentLayoutWidth = round(logicalCanvas.width * scale * screenScale) / screenScale;
         contentLayoutHeight = round(availableCardHeight * screenScale) / screenScale;
     } else if (aspectRatio > 0 && !keyboardActiveForAspect) {
-        // 1.83: 窗口 = aspectSize (1.6 精确尺寸, 经验值已经验证横向能填满)
-        // FBScene 用 chromeScale 缩过的原版画布 -> App 内容按原版比例排版, 完整不被压缩
-        // contentView 的 bounds = aspectSize (窗口大小), 用 transform 缩放 FBScene 内容铺满
-        contentLayoutWidth = aspectSize.width;                       // 窗口宽 = 1.6 精确宽
-        contentLayoutHeight = aspectSize.height;                    // 窗口高 = 1.6 精确高
-        // 1.83: scale = 1.0 (不用 chromeScale 二次缩放, 避免 contentView 内出现双重 transform)
-        scale = 1.0;
-        landscapeLogicalCanvasOverride = CGSizeZero;                // 原版画布, FBScene 全高渲染
-        // 等比缩放: 把 chromeScale 缩过的原版画布等比缩放到 aspectSize 窗口
-        CGFloat originalCardWidth = portraitCanvasWidth * chromeScale;
+        // 1.84: 基于 1.71 修复字体"扁"问题
+        // - 外框 = originalWidth x (originalWidth*aspectRatio), 1.71 形态 (你确认过的)
+        // - FBScene 渲染 = 原版 chromeScale 缩过的画布 (App 内容按原版比例排版, 完整不被压缩)
+        // - contentView.transform = scale(verticalScale, verticalScale) 等比缩放 (取代 1.71 的 Y-only 缩放)
+        //   -> 字 X/Y 同步缩, 圆字还是圆字 (不扁), 字号按 verticalScale 缩小但不拉伸变形
+        CGFloat originalWidth = portraitCanvasWidth * chromeScale;
         CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
-        // 取窗口宽高比例, 选最小缩放比 (确保铺满窗口最小边, 另一边由 clipsToBounds 裁)
-        verticalScale = MIN(contentLayoutWidth / originalCardWidth,
-                            contentLayoutHeight / originalCardHeight);
+        contentLayoutWidth = originalWidth;                              // 窗口宽 = 原版宽
+        contentLayoutHeight = round(originalWidth * aspectRatio);        // 窗口视觉高
+        scale = chromeScale;
+        landscapeLogicalCanvasOverride = CGSizeZero;                    // 原版画布, FBScene 全高渲染
+        // 等比缩放比例 = 窗口高 / 原版高 (>=1 表示窗口比原版高, 此时 fitScale 夹到 1 避免放大)
+        verticalScale = MIN(contentLayoutHeight / originalCardHeight, 1.0);
         CGFloat screenScale = UIScreen.mainScreen.scale;
         contentLayoutWidth = round(contentLayoutWidth * screenScale) / screenScale;
         contentLayoutHeight = round(contentLayoutHeight * screenScale) / screenScale;
@@ -837,16 +836,16 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         keyboardZoomContainer.frame = normalCardFrame;
         self->keyboardZoomBaseFrame = normalCardFrame;
         shadowView.frame = keyboardZoomContainer.bounds;
-        // 1.81: contentView.bounds = 原版 chromeScale 缩过的画布 (App 按原版比例排版, 完整不被压缩),
-        // transform = 等比 scale(verticalScale, verticalScale) 让原版画布等比适配窗口,
-        // 字不扁 (X/Y 同步缩), 字号相对原始比例略大 (因为窗口比原版略矮, verticalScale ≈ 0.6~0.95)。
-        // 1.83: contentView.bounds = aspectSize 窗口大小 (填满整个窗口, 无横向黑边),
-        // transform = scale(verticalScale, verticalScale) 把原版 chromeScale 缩过的画布
-        // 等比缩放到窗口内, 字不扁, 另一边 (大边) 由 clipsToBounds 自然裁切,
-        // 视觉上 App 内容按 16:9/5:3/4:3 比例填满整个窗口。
+        // 1.84: 完全照搬 1.71 的 contentView 设置, 只把 transform 从 scale(1, verticalScale)
+        // 改成 scale(verticalScale, verticalScale) 等比缩放, 修复字体"扁"问题。
+        // - contentView.bounds = 原版 chromeScale 缩过的画布 (App 按原版排版, 内容完整不被压缩)
+        // - transform = scale(verticalScale, verticalScale) 等比缩放
+        //   X/Y 同步缩 -> 圆字保持圆形 (不扁), 字号按 verticalScale 缩小
         if (aspectRatio > 0 && !keyboardActiveForAspect) {
+            CGFloat originalWidth = portraitCanvasWidth * chromeScale;
+            CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
             self.contentView.layer.anchorPoint = CGPointMake(0, 0);
-            self.contentView.bounds = CGRectMake(0, 0, contentLayoutWidth, contentLayoutHeight);
+            self.contentView.bounds = CGRectMake(0, 0, originalWidth, originalCardHeight);
             self.contentView.transform = CGAffineTransformMakeScale(verticalScale, verticalScale);
             self.contentView.frame = keyboardZoomContainer.bounds;
             self->contentOffsetY = 0;
