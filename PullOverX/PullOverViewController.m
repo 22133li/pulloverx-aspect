@@ -716,9 +716,11 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         contentLayoutWidth = round(logicalCanvas.width * scale * screenScale) / screenScale;
         contentLayoutHeight = round(availableCardHeight * screenScale) / screenScale;
     } else if (aspectRatio > 0 && !keyboardActiveForAspect) {
-        // 1.85: 基于 1.84, 缩消右边黑边 —— 窗口宽 = 设备宽度 (不用 chromeScale 缩),
-        // 让窗口完全填满屏幕可视宽度, 无右黑边。
-        CGFloat originalWidth = portraitCanvasWidth;                // 窗口宽 = 设备宽 (不用 chromeScale)
+        // 1.86: 窗口宽 = 设备宽 - handleRailWidth - CONTENT_EDGE_GAP - safeArea 边距,
+        // 让窗口完全打开时右边缘对齐 handle 轨道左边缘, 消除右黑边。
+        CGFloat rail = [self handleRailWidth];
+        CGFloat safe = [self trailingSafeAreaInset];
+        CGFloat originalWidth = portraitCanvasWidth - rail - CONTENT_EDGE_GAP - safe;   // 窗口宽
         CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
         contentLayoutWidth = originalWidth;                              // 窗口宽
         contentLayoutHeight = round(originalWidth * aspectRatio);        // 窗口视觉高
@@ -755,7 +757,9 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     scrollView.frame = bounds;
     // 卡片展开后的右边缘位于实体安全区外加 5pt 间隙，闭合时仍在屏幕外；
     // 因此滚动行程为卡片宽度加右侧安全区和间隙，保证把手与卡片始终同步。
-    CGFloat trailingInset = [self trailingSafeAreaInset] + CONTENT_EDGE_GAP;
+    // 1.86: 比例模式下 trailingInset = 0, 让窗口完全打开时右边缘贴齐 handle 轨道左边缘,
+    // 消除右边黑边 (比例模式窗口接近设备全宽, 留 50pt 边距显得突兀)。
+    CGFloat trailingInset = (aspectRatio > 0 && !keyboardActiveForAspect) ? 0 : [self trailingSafeAreaInset] + CONTENT_EDGE_GAP;
     scrollView.contentSize = CGSizeMake(CGRectGetWidth(bounds) + contentLayoutWidth + trailingInset,
                                         CGRectGetHeight(bounds));
     CGFloat maximumContentOffsetX = [self maximumContentOffsetX];
@@ -833,10 +837,11 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         keyboardZoomContainer.frame = normalCardFrame;
         self->keyboardZoomBaseFrame = normalCardFrame;
         shadowView.frame = keyboardZoomContainer.bounds;
-        // 1.85: 基于 1.84, contentView.bounds 宽 = 设备宽度 (不用 chromeScale 缩),
-        // 让 FBScene 在全宽画布上渲染, 无右黑边; transform 仍为等比缩放 (字不扁)。
+        // 1.86: 基于 1.85, contentView.bounds 宽 = 设备宽 - handleRailWidth - CONTENT_EDGE_GAP,
+        // 消除右黑边; transform 仍为等比缩放 (字不扁)。
         if (aspectRatio > 0 && !keyboardActiveForAspect) {
-            CGFloat originalWidth = portraitCanvasWidth;        // 设备宽 (不用 chromeScale)
+            CGFloat rail = [self handleRailWidth];
+            CGFloat originalWidth = portraitCanvasWidth - rail - CONTENT_EDGE_GAP;
             CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
             self.contentView.layer.anchorPoint = CGPointMake(0, 0);
             self.contentView.bounds = CGRectMake(0, 0, originalWidth, originalCardHeight);
