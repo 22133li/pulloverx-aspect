@@ -14,8 +14,6 @@
 #define CONTENT_CORNER_RADIUS 20
 #define CONTENT_SHADOW_OPACITY 0.28
 #define CONTENT_SHADOW_FADE_DISTANCE 12.0
-// 比例模式下托管画布高度相对窗口高度的系数 (略矮, 让 App 完整画面落进小窗避免底部裁切)
-#define ASPECT_CANVAS_HEIGHT_FACTOR 0.85
 #define CLOSED_CONTENT_OFFSET_EPSILON 0.5
 #define HOSTING_FAST_RETRY_LIMIT 12
 #define PO_KEYBOARD_ZOOM_REQUESTED_SCALE 1.60
@@ -77,10 +75,8 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     CGFloat windowAspectHeight;
     // 1.72: contentView 在 keyboardZoomContainer 内的 Y 偏移 (用户拖动看完整内容)
     CGFloat contentOffsetY;
-    // 1.75: 比例模式激活标志 (让托管画布 = 小窗尺寸, App 重排铺满, 横竖屏都消除右侧空白)
+    // 1.75: 比例模式激活标志 (让托管画布 = 窗口尺寸, App 重排铺满, 横竖屏一致 1.66 思路)
     BOOL aspectModeActive;
-    // 1.77: 比例模式下托管画布的高度 (略矮于窗口, 让 App 完整画面落进小窗避免底部裁切)
-    CGFloat aspectReflowHeight;
     BOOL pendingOpenState;
     // 拖动结束后统一改用与点按相同的程序化滚动。该标记在滚动真正结束前
     // 阻止快捷切换菜单，避免卡片还残留在屏幕上时就被当作“已关闭”。
@@ -724,21 +720,17 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         contentLayoutWidth = round(logicalCanvas.width * scale * screenScale) / screenScale;
         contentLayoutHeight = round(availableCardHeight * screenScale) / screenScale;
     } else if (aspectRatio > 0 && !keyboardActiveForAspect) {
-        // 1.75: App 按小窗尺寸重排铺满, 消除右侧空白/居中/无压扁/无裁切
-        // - 外框 = originalWidth x (originalWidth*aspectRatio), 维持原版 PullOverX 尺寸不变
-        // - 托管画布 (preferredSceneStackSize) = 小窗尺寸 -> App 内容重排无缝铺满小窗,
-        //   字体不变扁、无右侧空白、滚动条/把手贴合内容边缘
+        // 1.80: 完全按 1.66 横屏思路修复竖屏比例模式。
+        // 根因：1.75~1.79 用 0.85× 画布导致 App 按 0.85× 窗口渲染 -> 字体相对扁 +
+        // 上方留白 + 底部空窗。修复：托管画布 = 精确窗口尺寸 (originalWidth × aspectWindowHeight),
+        // App 按完整窗口重排, 字体 1:1 不扁, 内容完整铺满, 无上下空白、无裁切。
         CGFloat originalWidth = portraitCanvasWidth * chromeScale;
         CGFloat aspectWindowHeight = round(originalWidth * aspectRatio);
         contentLayoutWidth = originalWidth;                     // 窗口宽
         windowAspectHeight = aspectWindowHeight;                // 窗口视觉高
         contentLayoutHeight = aspectWindowHeight;               // 窗口高 (把手视口/卡片一致)
-        // 托管画布比窗口矮 (0.85): 让 App 完整画面落进小窗, 消除底部裁切与顶部空白。
-        // 0.85 为可调系数 —— 若底部仍裁切就调小, 若内容偏小/底部空隙大就调大。
-        aspectReflowHeight = round(aspectWindowHeight * ASPECT_CANVAS_HEIGHT_FACTOR);
-        landscapeLogicalCanvasOverride = CGSizeMake(originalWidth, aspectReflowHeight);
-        // 1.77: 回退 transform 缩放(1.76 的 0.94 会引入 X 定位偏移, 破坏横向)。
-        // 改由纯重排(上方 preferredSceneStackSize 用略矮画布)解决底部裁切, 不动 transform。
+        // 1.80: 画布 = 窗口 (1:1), 不留安全区 —— 1.66 横屏方案, 字体不变扁
+        landscapeLogicalCanvasOverride = CGSizeMake(originalWidth, aspectWindowHeight);
         scale = 1.0;
         verticalScale = 1.0;
         aspectModeActive = YES;
@@ -851,13 +843,11 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         keyboardZoomContainer.frame = normalCardFrame;
         self->keyboardZoomBaseFrame = normalCardFrame;
         shadowView.frame = keyboardZoomContainer.bounds;
-        // 1.78: App 按略矮画布重排 (aspectReflowHeight), contentView 顶对齐铺满窗口宽,
-        // 无顶部空白、底部不裁切、无 transform 定位偏移。
+        // 1.80: contentView 撑满窗口 (originalWidth × aspectWindowHeight), App 按窗口完整重排
+        // (画布 = 窗口, 1.66 思路), 字体不变扁、内容完整、无上下空白。
         if (aspectRatio > 0 && !keyboardActiveForAspect) {
-            self.contentView.layer.anchorPoint = CGPointMake(0.5, 0.5);
-            self.contentView.bounds = CGRectMake(0, 0, contentLayoutWidth, aspectReflowHeight);
             self.contentView.transform = CGAffineTransformIdentity;
-            self.contentView.frame = CGRectMake(0, 0, contentLayoutWidth, aspectReflowHeight);
+            self.contentView.frame = keyboardZoomContainer.bounds;
             self->contentOffsetY = 0;
         } else {
             self.contentView.transform = CGAffineTransformIdentity;
@@ -977,9 +967,8 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     CGFloat screenScale = UIScreen.mainScreen.scale;
     CGFloat rail = [self handleRailWidth];
     CGFloat w = round((shortSide - rail) * screenScale) / screenScale; // 窗口/画布宽
-    CGFloat fullH = w * ratio;                                        // 窗口视觉高
-    CGFloat reflowH = round(fullH * ASPECT_CANVAS_HEIGHT_FACTOR * screenScale) / screenScale; // 托管画布高(略矮)
-    return CGSizeMake(w, reflowH);
+    CGFloat fullH = round(w * ratio * screenScale) / screenScale;       // 窗口/画布高 (1:1, 1.66 思路)
+    return CGSizeMake(w, fullH);
 }
 
 -(UIInterfaceOrientation)contextManagerPreferredHostedInterfaceOrientation:(id)manager{
