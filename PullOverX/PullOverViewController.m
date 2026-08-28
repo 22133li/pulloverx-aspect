@@ -716,14 +716,11 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         contentLayoutWidth = round(logicalCanvas.width * scale * screenScale) / screenScale;
         contentLayoutHeight = round(availableCardHeight * screenScale) / screenScale;
     } else if (aspectRatio > 0 && !keyboardActiveForAspect) {
-        // 1.84: 基于 1.71 修复字体"扁"问题
-        // - 外框 = originalWidth x (originalWidth*aspectRatio), 1.71 形态 (你确认过的)
-        // - FBScene 渲染 = 原版 chromeScale 缩过的画布 (App 内容按原版比例排版, 完整不被压缩)
-        // - contentView.transform = scale(verticalScale, verticalScale) 等比缩放 (取代 1.71 的 Y-only 缩放)
-        //   -> 字 X/Y 同步缩, 圆字还是圆字 (不扁), 字号按 verticalScale 缩小但不拉伸变形
-        CGFloat originalWidth = portraitCanvasWidth * chromeScale;
+        // 1.85: 基于 1.84, 缩消右边黑边 —— 窗口宽 = 设备宽度 (不用 chromeScale 缩),
+        // 让窗口完全填满屏幕可视宽度, 无右黑边。
+        CGFloat originalWidth = portraitCanvasWidth;                // 窗口宽 = 设备宽 (不用 chromeScale)
         CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
-        contentLayoutWidth = originalWidth;                              // 窗口宽 = 原版宽
+        contentLayoutWidth = originalWidth;                              // 窗口宽
         contentLayoutHeight = round(originalWidth * aspectRatio);        // 窗口视觉高
         scale = chromeScale;
         landscapeLogicalCanvasOverride = CGSizeZero;                    // 原版画布, FBScene 全高渲染
@@ -836,13 +833,10 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         keyboardZoomContainer.frame = normalCardFrame;
         self->keyboardZoomBaseFrame = normalCardFrame;
         shadowView.frame = keyboardZoomContainer.bounds;
-        // 1.84: 完全照搬 1.71 的 contentView 设置, 只把 transform 从 scale(1, verticalScale)
-        // 改成 scale(verticalScale, verticalScale) 等比缩放, 修复字体"扁"问题。
-        // - contentView.bounds = 原版 chromeScale 缩过的画布 (App 按原版排版, 内容完整不被压缩)
-        // - transform = scale(verticalScale, verticalScale) 等比缩放
-        //   X/Y 同步缩 -> 圆字保持圆形 (不扁), 字号按 verticalScale 缩小
+        // 1.85: 基于 1.84, contentView.bounds 宽 = 设备宽度 (不用 chromeScale 缩),
+        // 让 FBScene 在全宽画布上渲染, 无右黑边; transform 仍为等比缩放 (字不扁)。
         if (aspectRatio > 0 && !keyboardActiveForAspect) {
-            CGFloat originalWidth = portraitCanvasWidth * chromeScale;
+            CGFloat originalWidth = portraitCanvasWidth;        // 设备宽 (不用 chromeScale)
             CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
             self.contentView.layer.anchorPoint = CGPointMake(0, 0);
             self.contentView.bounds = CGRectMake(0, 0, originalWidth, originalCardHeight);
