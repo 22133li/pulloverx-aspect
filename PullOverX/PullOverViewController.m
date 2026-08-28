@@ -714,6 +714,7 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         CGFloat screenScale = UIScreen.mainScreen.scale;
         contentLayoutWidth = round(contentLayoutWidth * screenScale) / screenScale;
         contentLayoutHeight = round(contentLayoutHeight * screenScale) / screenScale;
+        NSLog(@"[PullOverX] aspect-mode final contentLayout=%fx%f bounds=%@", contentLayoutWidth, contentLayoutHeight, NSStringFromCGRect(bounds));
     } else {
         // 竖屏保留 chromeScale 边距以避开非安全区的上下（刘海 / home 条）。
         // 卡片宽度 = 纯内容宽（画布宽 × chromeScale），不在此扣间距——离屏
@@ -755,7 +756,13 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         [scrollView setContentOffset:CGPointMake(restoredOffset, 0) animated:NO];
     }
 
-    CGFloat handleViewportHeight = CGRectGetHeight(bounds) * chromeScale;
+    // 把手视口高度: 比例模式下跟随 contentLayoutHeight (精确尺寸), 原始模式按 chromeScale 算全高
+    CGFloat handleViewportHeight;
+    if (aspectSize.width > 0 && !keyboardActiveForAspect) {
+        handleViewportHeight = contentLayoutHeight;
+    } else {
+        handleViewportHeight = CGRectGetHeight(bounds) * chromeScale;
+    }
     handleScrollView.frame = CGRectMake(CGRectGetWidth(bounds) - handleRailWidth, 0, handleRailWidth, handleViewportHeight);
     handleScrollView.center = CGPointMake(handleScrollView.center.x, CGRectGetMidY(bounds));
     handleScrollView.contentSize = CGSizeMake(handleRailWidth, (handleViewportHeight * 2) - self.handle.frame.size.height);
@@ -809,6 +816,7 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         keyboardZoomContainer.transform = CGAffineTransformIdentity;
         keyboardZoomContainer.frame = normalCardFrame;
         self->keyboardZoomBaseFrame = normalCardFrame;
+        NSLog(@"[PullOverX] normalCardFrame=%@ bounds=%@", NSStringFromCGRect(normalCardFrame), NSStringFromCGRect(bounds));
         shadowView.frame = keyboardZoomContainer.bounds;
         // 比例模式与原始模式同样布局: contentView 跟着 keyboardZoomContainer.bounds,
         // 不再 transform/不修改 bounds。窗口尺寸完全由 normalCardFrame (=精确 aspectSize)
