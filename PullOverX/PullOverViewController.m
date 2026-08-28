@@ -690,8 +690,7 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         case 3: aspectSize = CGSizeMake(378.0, 247.0); break;  // 4:3
         default: aspectSize = CGSizeZero; break;
     }
-    // 1.68: 直接按 aspectIndex 计算 ratio (16:9/5:3/4:3 = 1.778/1.667/1.333)
-    // aspectSize 仅用于设置入口的精确尺寸参考, 不参与 height 计算
+    CGFloat aspectRatio = 0; // 1.68: 直接按 aspectIndex 计算 ratio (16:9/5:3/4:3)
     switch (aspectIndex) {
         case 1: aspectRatio = 16.0 / 9.0; break;
         case 2: aspectRatio = 5.0 / 3.0; break;
