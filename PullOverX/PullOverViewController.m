@@ -690,7 +690,14 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         case 3: aspectSize = CGSizeMake(378.0, 247.0); break;  // 4:3
         default: aspectSize = CGSizeZero; break;
     }
-    CGFloat aspectRatio = aspectSize.height > 0 ? (CGFloat)aspectSize.height / aspectSize.width : 0;
+    // 1.68: 直接按 aspectIndex 计算 ratio (16:9/5:3/4:3 = 1.778/1.667/1.333)
+    // aspectSize 仅用于设置入口的精确尺寸参考, 不参与 height 计算
+    switch (aspectIndex) {
+        case 1: aspectRatio = 16.0 / 9.0; break;
+        case 2: aspectRatio = 5.0 / 3.0; break;
+        case 3: aspectRatio = 4.0 / 3.0; break;
+        default: aspectRatio = 0; break;
+    }
     NSLog(@"[PullOverX] cardAspect=%@ index=%ld ratio=%.3f", aspectSetting, (long)aspectIndex, aspectRatio);
     if (isLandscape) {
         // 横屏上下是手机侧边框（直线无缺口），卡片高度 = 屏幕高度减去上下各
@@ -704,16 +711,15 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         CGFloat screenScale = UIScreen.mainScreen.scale;
         contentLayoutWidth = round(logicalCanvas.width * scale * screenScale) / screenScale;
         contentLayoutHeight = round(availableCardHeight * screenScale) / screenScale;
-    } else if (aspectSize.width > 0 && !keyboardActiveForAspect) {
-        // 1.67: 改回"第一版"竖窗比例 (1.56 风格)
-        // 窗口宽度 = 原始 chromeScale 宽 (~402pt), 高度 = width * aspectRatio (16:9/5:3/4:3)
-        // -> 16:9 h=715, 5:3 h=670, 4:3 h=536 (比精确尺寸版更高, 像竖窗)
-        // 画布不动 (CGSizeZero), FBScene 完整渲染, QQ 内容可见不被压扁
+    } else if (aspectRatio > 0 && !keyboardActiveForAspect) {
+        // 1.68: 第一版竖窗比例的正确版本 (1.56 风格的修复)
+        // 窗口宽度 = 原始 chromeScale 宽 (~394pt), 高度 = width * aspectRatio
+        // -> 16:9 h=700, 5:3 h=657, 4:3 h=525 (像修长竖窗, 三个高度差距明显)
+        // 画布不动 (CGSizeZero), FBScene 完整渲染, QQ 内容可见
         // 无 transform, 文字不变形
         CGFloat originalWidth = portraitCanvasWidth * chromeScale;
-        CGFloat aspectRatioForHeight = (CGFloat)aspectSize.height / aspectSize.width;
         contentLayoutWidth = originalWidth;
-        contentLayoutHeight = round(originalWidth * aspectRatioForHeight);
+        contentLayoutHeight = round(originalWidth * aspectRatio);
         scale = chromeScale;
         landscapeLogicalCanvasOverride = CGSizeZero;
         CGFloat screenScale = UIScreen.mainScreen.scale;
