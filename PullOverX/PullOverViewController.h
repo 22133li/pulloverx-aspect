@@ -27,6 +27,9 @@
 -(void)handleOrientationChange;
 @property (nonatomic) BOOL isOpened;
 
+@property (nonatomic) CGFloat currentDynamicRatio; // 1.93: 动态比例模式下的当前 ratio (用户拖拽决定)
+@property (nonatomic, strong) UIPanGestureRecognizer *resizePanGesture; // 1.93: 拖拽改变窗口高度的手势
+
 @property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, strong) UIScrollView *handleScrollView;
 @property (nonatomic, strong) UIView *backgroundView;

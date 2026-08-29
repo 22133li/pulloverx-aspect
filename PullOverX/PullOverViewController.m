@@ -47,6 +47,7 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     UIView *shadowView;
     UIView *keyboardZoomContainer;
     UITapGestureRecognizer *closeTapGestureRecognizer;
+    UIPanGestureRecognizer *resizePanGesture; // 1.93: 动态比例 pan 手势
     // 无法托管时的占位画布，随卡片一起做竖转横变换
     UIView *cantHostCanvas;
     UIImageView *cantHostIconView;
@@ -211,7 +212,15 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     // before its slide-in begins.
     keyboardZoomContainer.hidden = YES;
     [scrollView addSubview:keyboardZoomContainer];
-    
+
+    // 1.93: 动态比例模式 — 在键盘缩放容器上加底边 pan 手势, 拖动改变窗口高度
+    UIPanGestureRecognizer *resizePan = [[UIPanGestureRecognizer alloc]
+        initWithTarget:self action:@selector(handleResizePan:)];
+    resizePan.delegate = (id<UIGestureRecognizerDelegate>)self;
+    resizePan.maximumNumberOfTouches = 1;
+    [keyboardZoomContainer addGestureRecognizer:resizePan];
+    self.resizePanGesture = resizePan;
+
     activityIndicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleLarge];
     activityIndicator.frame = CGRectMake(42, 54, 37, 37);
     activityIndicator.layer.shadowOpacity = 0.5;
@@ -682,6 +691,7 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         else if ([str isEqualToString:@"5:3"]) aspectIndex = 2;
         else if ([str isEqualToString:@"4:3"]) aspectIndex = 3;
         else if ([str isEqualToString:@"original"]) aspectIndex = 0;
+        else if ([str isEqualToString:@"dynamic"]) aspectIndex = -1; // 1.93: 动态比例模式
         else if (str.integerValue >= 0 && str.integerValue <= 3) aspectIndex = str.integerValue;
     } else if ([aspectSetting isKindOfClass:NSNumber.class]) {
         aspectIndex = [aspectSetting integerValue];
@@ -696,11 +706,21 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         default: aspectSize = CGSizeZero; break;
     }
     CGFloat aspectRatio = 0; // 1.68: 直接按 aspectIndex 计算 ratio (16:9/5:3/4:3)
-    switch (aspectIndex) {
-        case 1: aspectRatio = 16.0 / 9.0; break;
-        case 2: aspectRatio = 5.0 / 3.0; break;
-        case 3: aspectRatio = 4.0 / 3.0; break;
-        default: aspectRatio = 0; break;
+    // 1.93: dynamic 模式 (aspectIndex == -1) 用 currentDynamicRatio;
+    // 固定比例模式用对应预设值
+    if (aspectIndex == -1) {
+        // dynamic: 首次进入时 currentDynamicRatio = 0, 默认 16:9 起始
+        if (self.currentDynamicRatio <= 0) {
+            self.currentDynamicRatio = 16.0 / 9.0;
+        }
+        aspectRatio = self.currentDynamicRatio;
+    } else {
+        switch (aspectIndex) {
+            case 1: aspectRatio = 16.0 / 9.0; break;
+            case 2: aspectRatio = 5.0 / 3.0; break;
+            case 3: aspectRatio = 4.0 / 3.0; break;
+            default: aspectRatio = 0; break;
+        }
     }
     NSLog(@"[PullOverX] cardAspect=%@ index=%ld ratio=%.3f", aspectSetting, (long)aspectIndex, aspectRatio);
     if (isLandscape) {
@@ -1104,6 +1124,38 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     [self snapPanelToOpenState:YES];
 }
 
+-(void)handleResizePan:(UIPanGestureRecognizer *)pan{
+    // 1.93: 动态比例模式 — 用户拖动窗口底边, 实时调整窗口高度.
+    // 仅在 aspectRatio > 0 时生效 (固定比例下也允许拖动调整窗口大小).
+    static CGFloat startHeight = 0;
+    CGPoint translation = [pan translationInView:self.view];
+    if (pan.state == UIGestureRecognizerStateBegan) {
+        startHeight = CGRectGetHeight(keyboardZoomContainer.frame);
+        return;
+    }
+    if (pan.state != UIGestureRecognizerStateChanged) {
+        return;
+    }
+    // 计算新高度 (上限 = 设备全高 932, 下限 = 200pt)
+    CGFloat newHeight = MAX(200, MIN(932, startHeight + translation.y));
+    CGFloat width = CGRectGetWidth(keyboardZoomContainer.frame);
+    if (width <= 0) return;
+    // 反推 aspectRatio: ratio = height / width
+    CGFloat newRatio = newHeight / width;
+    // 更新 aspectIndex = -1 标志 (让布局走 aspectRatio 分支)
+    // 但避免在固定比例下被覆盖 — 检查 POApplicationHelper settings
+    // 直接修改 aspectIndex 仅在 dynamic mode 下 — 通过 POApplicationHelper 设置
+    self.currentDynamicRatio = newRatio;
+    // 强制重布局
+    [self applyLayoutPreservingHandlePosition:NO];
+}
+
+// 1.93: 检测是否处于动态比例模式 — cardAspect = "dynamic"
+-(BOOL)isDynamicAspectMode{
+    id aspectSetting = [POApplicationHelper settings][@"cardAspect"];
+    return [aspectSetting isKindOfClass:NSString.class] && [(NSString *)aspectSetting isEqualToString:@"dynamic"];
+}
+
 -(void)close{
     [self addKeyboardZoomSuspension:POKeyboardZoomSuspensionClosing];
     [self restoreKeyboardZoomImmediately];
@@ -1417,6 +1469,17 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
 
 -(BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch{
     if (gestureRecognizer != closeTapGestureRecognizer) {
+        // 1.93: resizePan 手势只在 dynamic 模式 + 底边 30pt 区域响应
+        if (gestureRecognizer == resizePanGesture) {
+            if (![self isDynamicAspectMode]) {
+                return NO;
+            }
+            CGPoint loc = [touch locationInView:keyboardZoomContainer];
+            CGFloat h = CGRectGetHeight(keyboardZoomContainer.bounds);
+            if (loc.y < h - 30) {
+                return NO;  // 仅底部 30pt 区域可拖动
+            }
+        }
         return YES;
     }
 
