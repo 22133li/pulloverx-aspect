@@ -337,6 +337,10 @@ __asm__(".linker_option \"-framework\", \"CydiaSubstrate\"");
 @class SBFluidSwitcherGestureManager;
 @class SBBulletinBannerController;
 @class BBBulletin;
+@class LSApplicationWorkspace;
+
+// 1.96: pulloverx:// scheme 统一处理 (前向声明, 定义在 hook 函数区)
+static BOOL POHandlePullOverXURL(NSURL *url);
 static void (*_logos_orig$_ungrouped$FBScene$updateSettings$withTransitionContext$completion$)(
     _LOGOS_SELF_TYPE_NORMAL FBScene *_LOGOS_SELF_CONST, SEL, id, id, id);
 static void _logos_method$_ungrouped$FBScene$updateSettings$withTransitionContext$completion$(
@@ -670,22 +674,55 @@ static void _logos_method$_ungrouped$SBLockStateAggregator$_updateLockState(
 // Hook SpringBoard 的 openURL: 方法 (NSURL 版) — PullOverX 接管 pulloverx:// scheme
 static void (*_logos_orig$_ungrouped$SpringBoard$_openURL)(_LOGOS_SELF_TYPE_NORMAL SpringBoard *_LOGOS_SELF_CONST, SEL, NSURL *);
 static void _logos_method$_ungrouped$SpringBoard$_openURL(_LOGOS_SELF_TYPE_NORMAL SpringBoard *_LOGOS_SELF_CONST __unused self, SEL __unused _cmd, NSURL *url) {
-    if ([url isKindOfClass:NSURL.class]) {
-        NSString *scheme = url.scheme.lowercaseString ?: @"";
-        if ([scheme isEqualToString:@"pulloverx"]) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                if (window && window.controller) {
-                    [window.controller handleIncomingURL:url];
-                } else {
-                    NSLog(@"[PullOverX] SpringBoard openURL: window not ready, storing URL");
-                    [POApplicationHelper setSetting:url.absoluteString forKey:@"pendingIncomingURL"];
-                }
-            });
-            return;  // 拦截, 不传递给系统
-        }
+    if (POHandlePullOverXURL(url)) {
+        return;  // 拦截 pulloverx://
     }
     if (_logos_orig$_ungrouped$SpringBoard$_openURL) {
         _logos_orig$_ungrouped$SpringBoard$_openURL(self, _cmd, url);
+    }
+}
+
+// 1.96: 统一的 pulloverx:// scheme 处理 — SpringBoard openURL 和 LSApplicationWorkspace openURL 都走这里
+static BOOL POHandlePullOverXURL(NSURL *url) {
+    if (![url isKindOfClass:NSURL.class]) {
+        return NO;
+    }
+    NSString *scheme = url.scheme.lowercaseString ?: @"";
+    if (![scheme isEqualToString:@"pulloverx"]) {
+        return NO;
+    }
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (window && window.controller) {
+            [window.controller handleIncomingURL:url];
+        } else {
+            NSLog(@"[PullOverX] pulloverx // window not ready, storing URL");
+            [POApplicationHelper setSetting:url.absoluteString forKey:@"pendingIncomingURL"];
+        }
+    });
+    return YES;  // 拦截成功
+}
+
+// 1.96: LSApplicationWorkspace hook — SquidGesture 等工具的 openURL 最终走这里
+typedef BOOL (*_logos_lsw_orig_openURL)(_LOGOS_SELF_TYPE_NORMAL LSApplicationWorkspace *_LOGOS_SELF_CONST, SEL, NSURL *, NSDictionary *);
+static _logos_lsw_orig_openURL _logos_orig$_LSApplicationWorkspace$openURL$withOptions$;
+static BOOL _logos_method$_LSApplicationWorkspace$openURL$withOptions$(_LOGOS_SELF_TYPE_NORMAL LSApplicationWorkspace *_LOGOS_SELF_CONST __unused self, SEL __unused _cmd, NSURL *url, NSDictionary *options) {
+    if (POHandlePullOverXURL(url)) {
+        return YES;  // 已拦截 pulloverx://
+    }
+    if (_logos_orig$_LSApplicationWorkspace$openURL$withOptions$) {
+        return _logos_orig$_LSApplicationWorkspace$openURL$withOptions$(self, _cmd, url, options);
+    }
+    return NO;
+}
+
+typedef void (*_logos_lsw_orig_opensensitive)(_LOGOS_SELF_TYPE_NORMAL LSApplicationWorkspace *_LOGOS_SELF_CONST, SEL, NSURL *, NSDictionary *);
+static _logos_lsw_orig_opensensitive _logos_orig$_LSApplicationWorkspace$openSensitiveURL$withOptions$;
+static void _logos_method$_LSApplicationWorkspace$openSensitiveURL$withOptions$(_LOGOS_SELF_TYPE_NORMAL LSApplicationWorkspace *_LOGOS_SELF_CONST __unused self, SEL __unused _cmd, NSURL *url, NSDictionary *options) {
+    if (POHandlePullOverXURL(url)) {
+        return;  // 已拦截
+    }
+    if (_logos_orig$_LSApplicationWorkspace$openSensitiveURL$withOptions$) {
+        _logos_orig$_LSApplicationWorkspace$openSensitiveURL$withOptions$(self, _cmd, url, options);
     }
 }
 
@@ -847,6 +884,34 @@ static __attribute__((constructor)) void POInstallSpringBoardHooks(int __unused 
                 }
             } else {
                 NSLog(@"[PullOverX] SBBulletinBannerController class not found");
+            }
+        }
+        // 1.96: LSApplicationWorkspace hook — SquidGesture 等经 LaunchServices 的 openURL
+        {
+            Class lsw = NSClassFromString(@"LSApplicationWorkspace");
+            if (lsw) {
+                SEL sel1 = @selector(openURL:withOptions:);
+                Method m1 = class_getInstanceMethod(lsw, sel1);
+                if (m1) {
+                    MSHookMessageEx(lsw, sel1,
+                                    (IMP)&_logos_method$_LSApplicationWorkspace$openURL$withOptions$,
+                                    (IMP *)&_logos_orig$_LSApplicationWorkspace$openURL$withOptions$);
+                    NSLog(@"[PullOverX] Hooked LSApplicationWorkspace openURL:withOptions:");
+                } else {
+                    NSLog(@"[PullOverX] LSApplicationWorkspace openURL:withOptions: not found");
+                }
+                SEL sel2 = @selector(openSensitiveURL:withOptions:);
+                Method m2 = class_getInstanceMethod(lsw, sel2);
+                if (m2) {
+                    MSHookMessageEx(lsw, sel2,
+                                    (IMP)&_logos_method$_LSApplicationWorkspace$openSensitiveURL$withOptions$,
+                                    (IMP *)&_logos_orig$_LSApplicationWorkspace$openSensitiveURL$withOptions$);
+                    NSLog(@"[PullOverX] Hooked LSApplicationWorkspace openSensitiveURL:withOptions:");
+                } else {
+                    NSLog(@"[PullOverX] LSApplicationWorkspace openSensitiveURL:withOptions: not found");
+                }
+            } else {
+                NSLog(@"[PullOverX] LSApplicationWorkspace class not found");
             }
         }
     }
