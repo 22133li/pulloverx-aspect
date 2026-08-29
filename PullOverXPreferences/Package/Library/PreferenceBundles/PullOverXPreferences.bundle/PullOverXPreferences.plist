@@ -423,7 +423,7 @@
 			<key>label</key>
 			<string>外部应用集成 (1.96</string>
 			<key>footerText</key>
-			<string>外部 App 通过 pulloverx://pin?bundleId=X&url=Y&banner=Z 唤起 PullOverX 窗口。bundleId 留空时自动取当前前台 App</string>
+			<string>外部 App 通过 pulloverx://pin?bundleId=X&amp;url=Y&amp;banner=Z 唤起 PullOverX 窗口。bundleId 留空时自动取当前前台 App</string>
 		</dict>
 		<dict>
 			<key>cell</key>

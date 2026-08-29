@@ -7,7 +7,7 @@ Depends: firmware (>= 14.0), mobilesubstrate, preferenceloader
 Conflicts: com.dao.pulloverpro, com.c1d3r.pulloverpro
 Replaces: com.dao.pulloverpro, com.c1d3r.pulloverpro
 Priority: optional
-Architecture: iphoneos-arm
+Architecture: iphoneos-arm64e
 Author: mlgm
 dev: mlgm
 Icon: https://mlgm66.github.io/icon/pullover.png
