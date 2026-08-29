@@ -726,11 +726,15 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         contentLayoutHeight = round(originalWidth * aspectRatio);        // 窗口视觉高
         scale = chromeScale;
         landscapeLogicalCanvasOverride = CGSizeZero;                    // 原版画布, FBScene 全高渲染
-        // 等比缩放比例 = 窗口高 / 原版高 (>=1 表示窗口比原版高, 此时 fitScale 夹到 1 避免放大)
-        verticalScale = MIN(contentLayoutHeight / originalCardHeight, 1.0);
+        // 1.88: 等比缩放比例 — 用宽度方向算 (窗口宽 / 原版画布宽 chromeScale 缩过的)
+        // 这样 scale 后原版画布宽 = 窗口宽, 右边精确对齐, 无残余白边。
+        // 高度方向会跟着等比缩放, 由 clipsToBounds 裁切超出部分。
+        CGFloat originalCardWidth = portraitCanvasWidth * chromeScale;
+        verticalScale = contentLayoutWidth / originalCardWidth;
         CGFloat screenScale = UIScreen.mainScreen.scale;
         contentLayoutWidth = round(contentLayoutWidth * screenScale) / screenScale;
         contentLayoutHeight = round(contentLayoutHeight * screenScale) / screenScale;
+        verticalScale = round(verticalScale * 1000) / 1000;  // 钳制精度到小数点后 3 位
         _aspectContentTransformNeeded = YES;
     } else {
         // 竖屏保留 chromeScale 边距以避开非安全区的上下（刘海 / home 条）。
@@ -837,19 +841,22 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         keyboardZoomContainer.frame = normalCardFrame;
         self->keyboardZoomBaseFrame = normalCardFrame;
         shadowView.frame = keyboardZoomContainer.bounds;
-        // 1.87: 修复 1.86 引入的"卡内右边黑边" — contentView.bounds 必须根据 verticalScale
-        // 反推, 让 transform scale 后的显示宽度 = 窗口宽度 (328pt), 填满整个窗口无黑边。
+        // 1.88: 修复 1.87 的残余白边 — contentView.bounds 必须用精确公式反推,
+        // 让 transform scale 后显示区域精确 = 窗口大小 (无任何白边/黑边)。
+        // 公式: bounds.size = (windowSize / verticalScale) -> scale 后 = windowSize
         if (aspectRatio > 0 && !keyboardActiveForAspect) {
             CGFloat rail = [self handleRailWidth];
             CGFloat safe = [self trailingSafeAreaInset];
             CGFloat originalWidth = portraitCanvasWidth - rail - CONTENT_EDGE_GAP - safe;
             CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
-            // 关键: bounds.width = 窗口宽 / verticalScale, scale 后才能填满窗口宽
-            CGFloat boundsW = (verticalScale > 0) ? contentLayoutWidth / verticalScale : originalWidth;
-            CGFloat boundsH = (verticalScale > 0) ? contentLayoutHeight / verticalScale : originalCardHeight;
+            // bounds 反推: scale 后 = windowSize
+            // 用 max(verticalScale, 0.01) 避免除零
+            CGFloat scale = MAX(verticalScale, 0.01);
+            CGFloat boundsW = contentLayoutWidth / scale;
+            CGFloat boundsH = contentLayoutHeight / scale;
             self.contentView.layer.anchorPoint = CGPointMake(0, 0);
             self.contentView.bounds = CGRectMake(0, 0, boundsW, boundsH);
-            self.contentView.transform = CGAffineTransformMakeScale(verticalScale, verticalScale);
+            self.contentView.transform = CGAffineTransformMakeScale(scale, scale);
             self.contentView.frame = keyboardZoomContainer.bounds;
             self->contentOffsetY = 0;
         } else {
