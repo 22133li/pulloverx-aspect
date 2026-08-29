@@ -646,4 +646,44 @@ static NSString * const kPOSettingsChangedNotification = @"com.mlgm.pulloverx.se
     [self.navigationController pushViewController:c animated:YES];
 }
 
+// 1.96: 黑名单编辑 - 在选定的应用中禁用
+-(void)editBlacklist:(PSSpecifier *)specifier{
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"在选定的应用中禁用"
+                                                                   message:@"输入要禁用的 App bundle ID，一行一个"
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    NSString *current = [[NSUserDefaults standardUserDefaults] stringForKey:@"disabledBundleIds"] ?: @"";
+    [alert addTextFieldWithConfigurationHandler:^(UITextField *tf) {
+        tf.placeholder = @"com.apple.mobilesafari\ncom.tencent.xinWeChat";
+        tf.text = current;
+        tf.autocapitalizationType = UITextAutocapitalizationTypeNone;
+        tf.autocorrectionType = UITextAutocorrectionTypeNo;
+    }];
+    [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"保存" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
+        NSString *text = alert.textFields.firstObject.text ?: @"";
+        [[NSUserDefaults standardUserDefaults] setObject:text forKey:@"disabledBundleIds"];
+    }]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+// 1.96: 域名排除列表编辑 - 排除的网页链接域名
+-(void)editExcludedDomains:(PSSpecifier *)specifier{
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"排除的网页链接域名"
+                                                                   message:@"输入要排除的域名（一行一个，包含此域名的 URL 不会被窗口化）"
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    NSString *current = [[NSUserDefaults standardUserDefaults] stringForKey:@"excludedDomains"] ?: @"";
+    [alert addTextFieldWithConfigurationHandler:^(UITextField *tf) {
+        tf.placeholder = @"example.com\nads.tracker.io";
+        tf.text = current;
+        tf.autocapitalizationType = UITextAutocapitalizationTypeNone;
+        tf.autocorrectionType = UITextAutocorrectionTypeNo;
+    }];
+    [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"保存" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
+        NSString *text = alert.textFields.firstObject.text ?: @"";
+        [[NSUserDefaults standardUserDefaults] setObject:text forKey:@"excludedDomains"];
+    }]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
 @end

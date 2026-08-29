@@ -414,6 +414,69 @@
 			<key>height</key>
 			<integer>44</integer>
 		</dict>
+		<!-- 1.96: 外部应用集成设置 -->
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>isStaticText</key>
+			<true/>
+			<key>label</key>
+			<string>外部应用集成 (1.96</string>
+			<key>footerText</key>
+			<string>外部 App 通过 pulloverx://pin?bundleId=X&url=Y&banner=Z 唤起 PullOverX 窗口。bundleId 留空时自动取当前前台 App</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>key</key>
+			<string>externalURLHosting</string>
+			<key>label</key>
+			<string>启用外部 URL 窗口化</string>
+			<key>defaults</key>
+			<string>com.mlgm.pulloverx</string>
+			<key>set</key>
+			<string>setValue:forSpecifier</string>
+			<key>get</key>
+			<string>getValueForSpecifier</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>key</key>
+			<string>notificationBannerHosting</string>
+			<key>label</key>
+			<string>启用通知横幅窗口化</string>
+			<key>defaults</key>
+			<string>com.mlgm.pulloverx</string>
+			<key>set</key>
+			<string>setValue:forSpecifier</string>
+			<key>get</key>
+			<string>getValueForSpecifier</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkCell</string>
+			<key>id</key>
+			<string>disabledBundleIds</string>
+			<key>label</key>
+			<string>在选定的应用中禁用（黑名单）</string>
+			<key>action</key>
+			<string>editBlacklist</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkCell</string>
+			<key>id</key>
+			<string>excludedDomains</string>
+			<key>label</key>
+			<string>排除的网页链接域名</string>
+			<key>action</key>
+			<string>editExcludedDomains</string>
+		</dict>
 	</array>
 </dict>
 </plist>

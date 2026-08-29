@@ -25,6 +25,10 @@
 // FrontBoard 真实方向更新或 SpringBoard 兼容回调触发窗口旋转前后调用。
 -(void)prepareForOrientationChange;
 -(void)handleOrientationChange;
+// 1.96: URL scheme 入口 - pulloverx://pin?bundleId=X&url=Y&banner=Z
+-(void)handleIncomingURL:(NSURL *)url;
+// 1.96: 黑名单/域名排除查询
+-(BOOL)isURLExcluded:(NSString *)urlString;
 @property (nonatomic) BOOL isOpened;
 
 @property (nonatomic) CGFloat currentDynamicRatio; // 1.93: 动态比例模式下的当前 ratio (用户拖拽决定)

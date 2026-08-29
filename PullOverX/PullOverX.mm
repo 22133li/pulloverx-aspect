@@ -278,6 +278,20 @@ static void POApplyCurrentSettings(void) {
         ? CGAffineTransformMakeScale(-1.0, 1.0)
         : CGAffineTransformIdentity;
     [window.controller applyCurrentSettings];
+
+    // 1.96: 处理 pending URL (启动时已收到但窗口未就绪)
+    static dispatch_once_t pendingURLProcessed;
+    NSString *pendingURL = settings[@"pendingIncomingURL"];
+    if (pendingURL.length > 0) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSURL *url = [NSURL URLWithString:pendingURL];
+            if (url && window.controller) {
+                [window.controller handleIncomingURL:url];
+            }
+            [POApplicationHelper setSetting:nil forKey:@"pendingIncomingURL"];
+        });
+    }
+
     UIInterfaceOrientation orientation =
         POResolvedInterfaceOrientation(UIInterfaceOrientationUnknown);
     POApplyInterfaceOrientation(orientation, 0, POLastAppliedInterfaceOrientation != orientation);
@@ -648,6 +662,31 @@ static void _logos_method$_ungrouped$SBLockStateAggregator$_updateLockState(
     }
 }
 
+#pragma mark - URL scheme handling (1.96)
+
+// 1.96: SpringBoard 收到 pulloverx:// URL 时调用我们的 handler
+// Hook SpringBoard 的 openURL: 方法 (NSURL 版) — PullOverX 接管 pulloverx:// scheme
+static void (*_logos_orig$_ungrouped$SpringBoard$_openURL)(_LOGOS_SELF_TYPE_NORMAL SpringBoard *_LOGOS_SELF_CONST, SEL, NSURL *);
+static void _logos_method$_ungrouped$SpringBoard$_openURL(_LOGOS_SELF_TYPE_NORMAL SpringBoard *_LOGOS_SELF_CONST __unused self, SEL __unused _cmd, NSURL *url) {
+    if ([url isKindOfClass:NSURL.class]) {
+        NSString *scheme = url.scheme.lowercaseString ?: @"";
+        if ([scheme isEqualToString:@"pulloverx"]) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (window && window.controller) {
+                    [window.controller handleIncomingURL:url];
+                } else {
+                    NSLog(@"[PullOverX] SpringBoard openURL: window not ready, storing URL");
+                    [POApplicationHelper setSetting:url.absoluteString forKey:@"pendingIncomingURL"];
+                }
+            });
+            return;  // 拦截, 不传递给系统
+        }
+    }
+    if (_logos_orig$_ungrouped$SpringBoard$_openURL) {
+        _logos_orig$_ungrouped$SpringBoard$_openURL(self, _cmd, url);
+    }
+}
+
 #pragma mark - Hook registration
 
 static __attribute__((constructor)) void POInstallSpringBoardHooks(int __unused argc, char __unused **argv,
@@ -739,6 +778,20 @@ static __attribute__((constructor)) void POInstallSpringBoardHooks(int __unused 
             MSHookMessageEx(_logos_class$_ungrouped$SBLockStateAggregator, @selector(_updateLockState),
                             (IMP)&_logos_method$_ungrouped$SBLockStateAggregator$_updateLockState,
                             (IMP *)&_logos_orig$_ungrouped$SBLockStateAggregator$_updateLockState);
+        }
+        // 1.96: 注册 SpringBoard URL hooks - pulloverx:// scheme
+        {
+            SEL openURLSel = @selector(openURL:);
+            Method openURLMethod = class_getInstanceMethod(_logos_class$_ungrouped$SpringBoard, openURLSel);
+            if (openURLMethod) {
+                MSHookMessageEx(_logos_class$_ungrouped$SpringBoard,
+                                openURLSel,
+                                (IMP)&_logos_method$_ungrouped$SpringBoard$_openURL,
+                                (IMP *)&_logos_orig$_ungrouped$SpringBoard$_openURL);
+                NSLog(@"[PullOverX] Hooked SpringBoard openURL:");
+            } else {
+                NSLog(@"[PullOverX] SpringBoard openURL: not found");
+            }
         }
     }
 }

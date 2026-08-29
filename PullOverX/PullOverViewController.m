@@ -1137,12 +1137,32 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
 
 
 -(void)pinAppWithBundleId:(NSString *)bundleId{
+    // 1.96: 黑名单检查 — 在选定的应用中禁用列表 (NSString 多行, 按 \n 分割)
+    if (bundleId.length > 0) {
+        id disabledRaw = [POApplicationHelper settings][@"disabledBundleIds"];
+        NSArray *disabled = nil;
+        if ([disabledRaw isKindOfClass:NSArray.class]) {
+            disabled = disabledRaw;
+        } else if ([disabledRaw isKindOfClass:NSString.class]) {
+            disabled = [(NSString *)disabledRaw componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
+        }
+        if (disabled.count > 0) {
+            for (NSString *bid in disabled) {
+                if (![bid isKindOfClass:NSString.class]) continue;
+                NSString *trimmed = [bid stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+                if (trimmed.length == 0) continue;
+                if ([trimmed isEqualToString:bundleId]) {
+                    NSLog(@"[PullOverX] pinAppWithBundleId: %@ is in blacklist, skipping", bundleId);
+                    return;
+                }
+            }
+        }
+    }
     pinnedBundleId = bundleId;
-    
+
     [[NSUserDefaults standardUserDefaults] setObject:bundleId forKey:@"lastPinnedBundleId"];
     UIImage *image = [POApplicationHelper imageForBundleId:bundleId];
     self.handle.imageView.image = image;
-
     // 切换到不同应用时立即重建宿主。展开态下这就是“就地快速切换”；
     // 闭合态下也会先准备好内容，随后再展开卡片。
     if (![bundleId isEqualToString:hostedBundleId]) {
@@ -1200,6 +1220,104 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
 -(BOOL)isDynamicAspectMode{
     id aspectSetting = [POApplicationHelper settings][@"cardAspect"];
     return [aspectSetting isKindOfClass:NSString.class] && [(NSString *)aspectSetting isEqualToString:@"dynamic"];
+}
+
+// 1.96: URL scheme 入口 - pulloverx://pin?bundleId=X&url=Y&banner=Z
+// 外部应用通过 openURL: 调用 pulloverx:// 唤起 PullOverX 窗口
+-(void)handleIncomingURL:(NSURL *)url{
+    if (![url isKindOfClass:NSURL.class] || !url.scheme) {
+        return;
+    }
+    NSString *scheme = url.scheme.lowercaseString;
+    if (![scheme isEqualToString:@"pulloverx"]) {
+        return;
+    }
+    NSString *action = url.host.lowercaseString ?: @"";
+    NSDictionary *params = [self queryParametersFromURL:url];
+
+    if ([action isEqualToString:@"pin"]) {
+        // pulloverx://pin?bundleId=com.apple.mobilesafari&url=https://example.com&banner=1
+        NSString *bundleId = params[@"bundleId"];
+        // 1.96: 允许调用方不传 bundleId, 用 frontMostBundleId ($frontAppBundleID)
+        if (bundleId.length == 0) {
+            bundleId = [POApplicationHelper frontMostBundleId];
+        }
+        if (bundleId.length == 0) {
+            NSLog(@"[PullOverX] handleIncomingURL: no bundleId and no front app");
+            return;
+        }
+        // 域名排除检查 — 如果 bundleId 是浏览器且 URL 在排除列表, 不开窗口
+        NSString *externalURL = params[@"url"];
+        if (externalURL.length > 0 && [self isURLExcluded:externalURL]) {
+            NSLog(@"[PullOverX] handleIncomingURL: URL excluded by domain list");
+            return;
+        }
+        [self pinAppWithBundleId:bundleId];
+        // 如果传了 url/banner, 标记本次调用
+        if (externalURL.length > 0) {
+            [POApplicationHelper setSetting:externalURL forKey:@"pendingExternalURL"];
+            [POApplicationHelper setSetting:@YES forKey:@"externalURLHosting"];
+        }
+        if ([params[@"banner"] isEqualToString:@"1"]) {
+            [POApplicationHelper setSetting:@YES forKey:@"notificationBannerHosting"];
+        }
+        NSLog(@"[PullOverX] handleIncomingURL: pinned %@ (url=%@ banner=%@)", bundleId, externalURL, params[@"banner"]);
+    }
+}
+
+// 1.96: 解析 URL query 参数
+-(NSDictionary *)queryParametersFromURL:(NSURL *)url{
+    NSMutableDictionary *params = [NSMutableDictionary dictionary];
+    NSString *query = url.query;
+    if (query.length == 0) return params;
+    NSArray *pairs = [query componentsSeparatedByString:@"&"];
+    for (NSString *pair in pairs) {
+        NSArray *kv = [pair componentsSeparatedByString:@"="];
+        if (kv.count == 2) {
+            NSString *k = [kv[0] stringByRemovingPercentEncoding] ?: kv[0];
+            NSString *v = [kv[1] stringByRemovingPercentEncoding] ?: kv[1];
+            params[k] = v;
+        } else if (kv.count == 1) {
+            params[kv[0]] = @"";
+        }
+    }
+    return params;
+}
+
+// 1.96: 域名排除检查 — URL host 是否在 excludedDomains 列表 (字符串多行 / 数组均可)
+-(BOOL)isURLExcluded:(NSString *)urlString{
+    if (urlString.length == 0) return NO;
+    id excludedRaw = [POApplicationHelper settings][@"excludedDomains"];
+    NSArray *excluded = nil;
+    if ([excludedRaw isKindOfClass:NSArray.class]) {
+        excluded = excludedRaw;
+    } else if ([excludedRaw isKindOfClass:NSString.class]) {
+        excluded = [(NSString *)excludedRaw componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
+    }
+    if (excluded.count == 0) return NO;
+    NSURL *u = [NSURL URLWithString:urlString];
+    NSString *host = u.host.lowercaseString;
+    if (host.length == 0) return NO;
+    for (id raw in excluded) {
+        if (![raw isKindOfClass:NSString.class]) continue;
+        NSString *p = ((NSString *)raw).lowercaseString;
+        NSString *trimmed = [p stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        if (trimmed.length == 0) continue;
+        if ([host isEqualToString:trimmed] || [host hasSuffix:[@"." stringByAppendingString:trimmed]]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+// 1.96: 检测外部 URL 窗口化是否启用
+-(BOOL)isExternalURLHostingEnabled{
+    return [[POApplicationHelper settings][@"externalURLHosting"] boolValue];
+}
+
+// 1.96: 检测通知横幅窗口化是否启用
+-(BOOL)isNotificationBannerHostingEnabled{
+    return [[POApplicationHelper settings][@"notificationBannerHosting"] boolValue];
 }
 
 -(void)close{
