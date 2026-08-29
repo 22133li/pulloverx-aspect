@@ -716,17 +716,13 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         contentLayoutWidth = round(logicalCanvas.width * scale * screenScale) / screenScale;
         contentLayoutHeight = round(availableCardHeight * screenScale) / screenScale;
     } else if (aspectRatio > 0 && !keyboardActiveForAspect) {
-        // 1.91: 用 anchorPoint 居中 + 等比缩放, 让缩放后画布在窗口里居中显示。
-        // - X 方向居中 (anchorPoint = 0.5) -> 左右两侧留等量空白, 不再是"单边白边"
-        // - Y 方向同样居中 -> 上下均匀留白
-        // - 字 X/Y 同步缩 (verticalScale) -> 圆字保持圆形 (不扁), 只是变小
+        // 1.92: 完全照搬 1.71 aspect 分支 — 用户唯一确认"内容看得全"的版本
         CGFloat originalWidth = portraitCanvasWidth * chromeScale;
         CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
-        contentLayoutWidth = originalWidth;                              // 窗口宽 = 原版宽
-        contentLayoutHeight = round(originalWidth * aspectRatio);        // 窗口视觉高
+        contentLayoutWidth = originalWidth;
+        contentLayoutHeight = round(originalWidth * aspectRatio);
         scale = chromeScale;
-        landscapeLogicalCanvasOverride = CGSizeZero;                    // 原版画布, FBScene 全高渲染
-        // 等比缩放比例 = 窗口高 / 原版高 (>=1 表示窗口比原版高, 此时 fitScale 夹到 1 避免放大)
+        landscapeLogicalCanvasOverride = CGSizeZero;
         verticalScale = MIN(contentLayoutHeight / originalCardHeight, 1.0);
         CGFloat screenScale = UIScreen.mainScreen.scale;
         contentLayoutWidth = round(contentLayoutWidth * screenScale) / screenScale;
@@ -839,17 +835,14 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         // - 等比缩放 (verticalScale) -> 字 X/Y 同步缩, 圆字保持圆形 (不扁), 只是变小
         // - anchorPoint (0.5, 0.5) 居中 -> 缩放后画布左右居中, 空白均匀分布两侧 (非单边白边)
         if (aspectRatio > 0 && !keyboardActiveForAspect) {
-            CGFloat originalWidth = portraitCanvasWidth * chromeScale;
             CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
-            self.contentView.layer.anchorPoint = CGPointMake(0.5, 0.5);
-            self.contentView.bounds = CGRectMake(0, 0, originalWidth, originalCardHeight);
-            self.contentView.transform = CGAffineTransformMakeScale(verticalScale, verticalScale);
+            self.contentView.layer.anchorPoint = CGPointMake(0, 0);
+            self.contentView.bounds = CGRectMake(0, 0, portraitCanvasWidth * chromeScale, originalCardHeight);
+            self.contentView.transform = CGAffineTransformMakeScale(1.0, verticalScale);
             self.contentView.frame = keyboardZoomContainer.bounds;
-            self->contentOffsetY = 0;
         } else {
             self.contentView.transform = CGAffineTransformIdentity;
             self.contentView.frame = keyboardZoomContainer.bounds;
-            self->contentOffsetY = 0;
         }
         shadowView.layer.shadowPath = [UIBezierPath bezierPathWithRoundedRect:shadowView.bounds
                                                                   cornerRadius:CONTENT_CORNER_RADIUS].CGPath;
