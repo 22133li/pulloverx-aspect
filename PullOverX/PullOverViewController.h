@@ -29,6 +29,8 @@
 -(void)handleIncomingURL:(NSURL *)url;
 // 1.96: 黑名单/域名排除查询
 -(BOOL)isURLExcluded:(NSString *)urlString;
+// 1.96: 通知横幅窗口化 - 收到横幅时把来源 app pin 进小窗
+-(void)pinAppFromNotificationWithSectionID:(NSString *)sectionID;
 @property (nonatomic) BOOL isOpened;
 
 @property (nonatomic) CGFloat currentDynamicRatio; // 1.93: 动态比例模式下的当前 ratio (用户拖拽决定)

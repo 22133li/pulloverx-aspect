@@ -335,6 +335,8 @@ __asm__(".linker_option \"-framework\", \"CydiaSubstrate\"");
 @class SBLockScreenViewControllerBase;
 @class SpringBoard;
 @class SBFluidSwitcherGestureManager;
+@class SBBulletinBannerController;
+@class BBBulletin;
 static void (*_logos_orig$_ungrouped$FBScene$updateSettings$withTransitionContext$completion$)(
     _LOGOS_SELF_TYPE_NORMAL FBScene *_LOGOS_SELF_CONST, SEL, id, id, id);
 static void _logos_method$_ungrouped$FBScene$updateSettings$withTransitionContext$completion$(
@@ -687,6 +689,41 @@ static void _logos_method$_ungrouped$SpringBoard$_openURL(_LOGOS_SELF_TYPE_NORMA
     }
 }
 
+// 1.96: 通知横幅窗口化 — 横幅来的时候拿到来源 app (bulletin.sectionID), 交给 controller 开小窗
+typedef void (*_logos_banner_orig_type)(_LOGOS_SELF_TYPE_NORMAL SBBulletinBannerController *_LOGOS_SELF_CONST, SEL, id, id, unsigned long long, id);
+static _logos_banner_orig_type _logos_orig$_ungrouped$SBBulletinBannerController$observer$addBulletin$forFeed$playLightsAndSirens$withReply$;
+static void _logos_method$_ungrouped$SBBulletinBannerController$observer$addBulletin$forFeed$playLightsAndSirens$withReply$(
+    _LOGOS_SELF_TYPE_NORMAL SBBulletinBannerController *_LOGOS_SELF_CONST __unused self,
+    SEL __unused _cmd, id observer, id bulletin, unsigned long long feed, id reply) {
+    // 先让系统正常展示横幅
+    if (_logos_orig$_ungrouped$SBBulletinBannerController$observer$addBulletin$forFeed$playLightsAndSirens$withReply$) {
+        _logos_orig$_ungrouped$SBBulletinBannerController$observer$addBulletin$forFeed$playLightsAndSirens$withReply$(self, _cmd, observer, bulletin, feed, reply);
+    }
+    // 取来源 app: BBBulletin.sectionID == app bundleID
+    if (![bulletin isKindOfClass:NSClassFromString(@"BBBulletin")]) {
+        // 有些 iOS 版本不是直接传 BBBulletin, 尝试 KVC
+        if ([bulletin respondsToSelector:@selector(sectionID)]) {
+            NSString *sectionID = [bulletin valueForKey:@"sectionID"];
+            if (sectionID.length > 0) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    if (window && window.controller) {
+                        [window.controller pinAppFromNotificationWithSectionID:sectionID];
+                    }
+                });
+            }
+        }
+        return;
+    }
+    NSString *sectionID = [bulletin valueForKey:@"sectionID"];
+    if (sectionID.length > 0) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (window && window.controller) {
+                [window.controller pinAppFromNotificationWithSectionID:sectionID];
+            }
+        });
+    }
+}
+
 #pragma mark - Hook registration
 
 static __attribute__((constructor)) void POInstallSpringBoardHooks(int __unused argc, char __unused **argv,
@@ -791,6 +828,25 @@ static __attribute__((constructor)) void POInstallSpringBoardHooks(int __unused 
                 NSLog(@"[PullOverX] Hooked SpringBoard openURL:");
             } else {
                 NSLog(@"[PullOverX] SpringBoard openURL: not found");
+            }
+        }
+        // 1.96: 通知横幅窗口化 hook - 横幅来时把来源 app pin 进小窗
+        {
+            Class bannerController = NSClassFromString(@"SBBulletinBannerController");
+            if (bannerController) {
+                SEL bannerSel = @selector(observer:addBulletin:forFeed:playLightsAndSirens:withReply:);
+                Method bannerMethod = class_getInstanceMethod(bannerController, bannerSel);
+                if (bannerMethod) {
+                    MSHookMessageEx(bannerController,
+                                    bannerSel,
+                                    (IMP)&_logos_method$_ungrouped$SBBulletinBannerController$observer$addBulletin$forFeed$playLightsAndSirens$withReply$,
+                                    (IMP *)&_logos_orig$_ungrouped$SBBulletinBannerController$observer$addBulletin$forFeed$playLightsAndSirens$withReply$);
+                    NSLog(@"[PullOverX] Hooked SBBulletinBannerController banner");
+                } else {
+                    NSLog(@"[PullOverX] SBBulletinBannerController selector not found");
+                }
+            } else {
+                NSLog(@"[PullOverX] SBBulletinBannerController class not found");
             }
         }
     }

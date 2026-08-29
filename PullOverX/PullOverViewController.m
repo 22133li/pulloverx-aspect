@@ -1320,6 +1320,45 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     return [[POApplicationHelper settings][@"notificationBannerHosting"] boolValue];
 }
 
+// 1.96: 通知横幅窗口化 — 收到横幅时, 把来源 app pin 进小窗.
+// sectionID 即触发横幅通知的 app bundleID.
+-(void)pinAppFromNotificationWithSectionID:(NSString *)sectionID{
+    if (sectionID.length == 0) return;
+    // 功能开关
+    if (![[POApplicationHelper settings][@"notificationBannerHosting"] boolValue]) {
+        return;
+    }
+    // 黑名单: 如果这个 app 在禁用列表, 不自动开窗
+    id disabledRaw = [POApplicationHelper settings][@"disabledBundleIds"];
+    NSArray *disabled = nil;
+    if ([disabledRaw isKindOfClass:NSArray.class]) {
+        disabled = disabledRaw;
+    } else if ([disabledRaw isKindOfClass:NSString.class]) {
+        disabled = [(NSString *)disabledRaw componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
+    }
+    if (disabled.count > 0) {
+        for (NSString *bid in disabled) {
+            if (![bid isKindOfClass:NSString.class]) continue;
+            NSString *t = [bid stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+            if (t.length > 0 && [t isEqualToString:sectionID]) {
+                NSLog(@"[PullOverX] banner: %@ in blacklist, skip auto-open", sectionID);
+                return;
+            }
+        }
+    }
+    // 已经是这个 app 的小窗, 不重复弹
+    if ([pinnedBundleId isEqualToString:sectionID]) {
+        return;
+    }
+    NSLog(@"[PullOverX] banner: opening window for %@ (notification banner)", sectionID);
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self pinAppWithBundleId:sectionID];
+        if (!self.isOpened) {
+            [self open];
+        }
+    });
+}
+
 -(void)close{
     [self addKeyboardZoomSuspension:POKeyboardZoomSuspensionClosing];
     [self restoreKeyboardZoomImmediately];
