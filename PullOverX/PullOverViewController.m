@@ -47,7 +47,7 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     UIView *shadowView;
     UIView *keyboardZoomContainer;
     UITapGestureRecognizer *closeTapGestureRecognizer;
-    UIPanGestureRecognizer *resizePanGesture; // 1.93: 动态比例 pan 手势
+    UIPanGestureRecognizer *resizePanGesture __attribute__((unused)); // 1.93: 动态比例 pan 手势 (显式声明以避免 -Wobjc-autosynthesis-property-ivar-name-match 警告)
     // 无法托管时的占位画布，随卡片一起做竖转横变换
     UIView *cantHostCanvas;
     UIImageView *cantHostIconView;
@@ -801,8 +801,8 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     } else {
         handleViewportHeight = CGRectGetHeight(bounds) * chromeScale;
     }
-    handleScrollView.frame = CGRectMake(CGRectGetWidth(bounds) - handleRailWidth, normalCardFrame.origin.y, handleRailWidth, handleViewportHeight);
-    handleScrollView.center = CGPointMake(handleScrollView.center.x, CGRectGetMidY(aspectMode ? normalCardFrame : bounds));
+    handleScrollView.frame = CGRectMake(CGRectGetWidth(bounds) - handleRailWidth, 0, handleRailWidth, handleViewportHeight);
+    handleScrollView.center = CGPointMake(handleScrollView.center.x, CGRectGetMidY(bounds));
     handleScrollView.contentSize = CGSizeMake(handleRailWidth, (handleViewportHeight * 2) - self.handle.frame.size.height);
 
     CGFloat targetHandleOffset = 0;
