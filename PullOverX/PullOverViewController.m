@@ -837,14 +837,18 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         keyboardZoomContainer.frame = normalCardFrame;
         self->keyboardZoomBaseFrame = normalCardFrame;
         shadowView.frame = keyboardZoomContainer.bounds;
-        // 1.86: 基于 1.85, contentView.bounds 宽 = 设备宽 - handleRailWidth - CONTENT_EDGE_GAP,
-        // 消除右黑边; transform 仍为等比缩放 (字不扁)。
+        // 1.87: 修复 1.86 引入的"卡内右边黑边" — contentView.bounds 必须根据 verticalScale
+        // 反推, 让 transform scale 后的显示宽度 = 窗口宽度 (328pt), 填满整个窗口无黑边。
         if (aspectRatio > 0 && !keyboardActiveForAspect) {
             CGFloat rail = [self handleRailWidth];
-            CGFloat originalWidth = portraitCanvasWidth - rail - CONTENT_EDGE_GAP;
+            CGFloat safe = [self trailingSafeAreaInset];
+            CGFloat originalWidth = portraitCanvasWidth - rail - CONTENT_EDGE_GAP - safe;
             CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
+            // 关键: bounds.width = 窗口宽 / verticalScale, scale 后才能填满窗口宽
+            CGFloat boundsW = (verticalScale > 0) ? contentLayoutWidth / verticalScale : originalWidth;
+            CGFloat boundsH = (verticalScale > 0) ? contentLayoutHeight / verticalScale : originalCardHeight;
             self.contentView.layer.anchorPoint = CGPointMake(0, 0);
-            self.contentView.bounds = CGRectMake(0, 0, originalWidth, originalCardHeight);
+            self.contentView.bounds = CGRectMake(0, 0, boundsW, boundsH);
             self.contentView.transform = CGAffineTransformMakeScale(verticalScale, verticalScale);
             self.contentView.frame = keyboardZoomContainer.bounds;
             self->contentOffsetY = 0;
