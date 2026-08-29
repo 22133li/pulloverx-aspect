@@ -437,9 +437,9 @@
 			<key>defaults</key>
 			<string>com.mlgm.pulloverx</string>
 			<key>set</key>
-			<string>setValue:forSpecifier</string>
+			<string>setValue:forSpecifier:</string>
 			<key>get</key>
-			<string>getValueForSpecifier</string>
+			<string>getValueForSpecifier:</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -453,9 +453,9 @@
 			<key>defaults</key>
 			<string>com.mlgm.pulloverx</string>
 			<key>set</key>
-			<string>setValue:forSpecifier</string>
+			<string>setValue:forSpecifier:</string>
 			<key>get</key>
-			<string>getValueForSpecifier</string>
+			<string>getValueForSpecifier:</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -465,7 +465,7 @@
 			<key>label</key>
 			<string>在选定的应用中禁用（黑名单）</string>
 			<key>action</key>
-			<string>editBlacklist</string>
+			<string>editBlacklist:</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -475,7 +475,7 @@
 			<key>label</key>
 			<string>排除的网页链接域名</string>
 			<key>action</key>
-			<string>editExcludedDomains</string>
+			<string>editExcludedDomains:</string>
 		</dict>
 	</array>
 </dict>
