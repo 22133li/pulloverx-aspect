@@ -736,14 +736,19 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         contentLayoutWidth = round(logicalCanvas.width * scale * screenScale) / screenScale;
         contentLayoutHeight = round(availableCardHeight * screenScale) / screenScale;
     } else if (aspectRatio > 0 && !keyboardActiveForAspect) {
-        // 1.92: 完全照搬 1.71 aspect 分支 — 用户唯一确认"内容看得全"的版本
+        // 1.94: 调大缩放系数 0.821 -> 0.875 (字大 ~6.6%), 标题栏 45pt 让给内容
+        // - 字大小: 87.5% (vs 1.93 的 82.1%)
+        // - 画布渲染高度: 845 × 0.875 = 739pt (vs 694pt)
+        // - contentView 上移 45pt, 让顶部 45pt 渲染区落在原标题栏位置
+        //   (标题栏已关闭, 那块区域现在属于 content)
+        // - 窗口外框尺寸不变 (390 x 694)
         CGFloat originalWidth = portraitCanvasWidth * chromeScale;
         CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
         contentLayoutWidth = originalWidth;
         contentLayoutHeight = round(originalWidth * aspectRatio);
         scale = chromeScale;
         landscapeLogicalCanvasOverride = CGSizeZero;
-        verticalScale = MIN(contentLayoutHeight / originalCardHeight, 1.0);
+        verticalScale = 0.875;  // 1.94: 字 87.5% (比 0.821 大 ~6.6%)
         CGFloat screenScale = UIScreen.mainScreen.scale;
         contentLayoutWidth = round(contentLayoutWidth * screenScale) / screenScale;
         contentLayoutHeight = round(contentLayoutHeight * screenScale) / screenScale;
@@ -841,8 +846,20 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     // 在 iPad、8 Plus 和刘海设备上均适用。container 的 frame 是 scrollView 内容坐标，
     // contentView/shadowView 则只使用 container 的局部 bounds。
     CGFloat cardH = contentLayoutHeight;
+    // 1.94: aspect 模式 +45pt 高度给内容 (标题栏让出来)
+    BOOL aspectMode = (aspectRatio > 0 && !keyboardActiveForAspect);
+    if (aspectMode) {
+        cardH += 45.0;
+    }
     CGRect normalCardFrame = CGRectMake(CGRectGetWidth(bounds), 0, contentLayoutWidth, cardH);
     normalCardFrame.origin.y = CGRectGetMidY(bounds) - CGRectGetHeight(normalCardFrame) / 2.0;
+    // 1.94: aspect 模式下 kzc 高度 +45pt, 确保不超出屏幕 (kzc 底 <= 932)
+    if (aspectMode) {
+        CGFloat kzcBottom = CGRectGetMaxY(normalCardFrame);
+        if (kzcBottom > CGRectGetHeight(bounds)) {
+            normalCardFrame.origin.y -= (kzcBottom - CGRectGetHeight(bounds));
+        }
+    }
     CGFloat screenScale = UIScreen.mainScreen.scale;
     normalCardFrame.origin.y = round(normalCardFrame.origin.y * screenScale) / screenScale;
     [UIView performWithoutAnimation:^{
@@ -854,6 +871,14 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         // 1.91: anchorPoint 居中 + 等比缩放, 让缩放后画布在窗口中居中显示。
         // - 等比缩放 (verticalScale) -> 字 X/Y 同步缩, 圆字保持圆形 (不扁), 只是变小
         // - anchorPoint (0.5, 0.5) 居中 -> 缩放后画布左右居中, 空白均匀分布两侧 (非单边白边)
+        // 1.94: 标题栏让给内容 — keyboardZoomContainer 高度 +45pt, contentView 缩放匹配
+        // - kzc.frame.height = contentLayoutHeight + 45 (从 694 -> 739)
+        // - contentView.bounds = (originalWidth, originalCardHeight)
+        // - transform scale(1.0, 0.875) -> 显示 390 x 739
+        // - contentView.frame = kzc.bounds (填满扩展后的 kzc)
+        // - kzc 上移 22.5pt (一半的标题栏高度), 让卡片垂直居中于外框 (390 x 694) 视觉上
+        // - 实际显示: 390 x 739 内容, 顶部 22.5pt + 底部 22.5pt = 45pt 在外框外 (被外框裁切)
+        // - 但用户说"标题栏让给内容" -> 标题栏已关, 这 45pt 区域本来就属于内容
         if (aspectRatio > 0 && !keyboardActiveForAspect) {
             CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
             self.contentView.layer.anchorPoint = CGPointMake(0, 0);
