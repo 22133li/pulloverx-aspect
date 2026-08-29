@@ -1,6 +1,6 @@
 Package: com.mlgm.pulloverx
 Name: PullOver X
-Version: 1.89
+Version: 1.90
 Description: 悬浮多任务窗口工具，基于 Pullover Pro 进行修改
 Section: Tweaks
 Depends: firmware (>= 14.0), mobilesubstrate, preferenceloader

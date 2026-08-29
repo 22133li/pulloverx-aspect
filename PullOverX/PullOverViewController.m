@@ -716,24 +716,32 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         contentLayoutWidth = round(logicalCanvas.width * scale * screenScale) / screenScale;
         contentLayoutHeight = round(availableCardHeight * screenScale) / screenScale;
     } else if (aspectRatio > 0 && !keyboardActiveForAspect) {
-        // 1.89: 完全照搬 1.71 aspect 分支 — 唯一修改是把 contentView.transform 从
-        // scale(1, verticalScale) 改成 scale(verticalScale, verticalScale), 修复字扁。
-        // - 外框 = originalWidth x (originalWidth*aspectRatio), 1.71 形态
-        // - FBScene 渲染 = 原版 chromeScale 缩过的画布 (App 内容按原版比例排版, 完整不被压缩)
-        // - contentView.bounds = 原版 chromeScale 缩过的画布 (1.71 一致)
-        // - transform = scale(verticalScale, verticalScale) 等比缩放取代 1.71 的 Y-only
-        CGFloat originalWidth = portraitCanvasWidth * chromeScale;
-        CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
-        contentLayoutWidth = originalWidth;                              // 窗口宽 = 原版宽
-        contentLayoutHeight = round(originalWidth * aspectRatio);        // 窗口视觉高
-        scale = chromeScale;
-        landscapeLogicalCanvasOverride = CGSizeZero;                    // 原版画布, FBScene 全高渲染
-        // 等比缩放比例 = 窗口高 / 原版高
-        verticalScale = MIN(contentLayoutHeight / originalCardHeight, 1.0);
+        // 1.90: 关键思路 — scale = 1.0 (完全不缩放)。
+        // 让画布宽 = portraitCanvasWidth (设备全宽).
+        // verticalScale 用宽度方向算: 窗口宽 / 画布宽 = 1.0 (X 不缩, 右边无白边)
+        // 高度方向会超出窗口, 由 clipsToBounds 裁切, 不再字扁 (X 不缩 = 字 X 不变形)
+        // 但 Y 缩到 verticalScale -> 实际 Y 缩是 height 方向, 但 X 不缩 -> 圆字会变成椭圆
+        // 等等: X=1.0 Y=0.821 是字扁的根因。
+        // 真正思路: 不动 chromeScale, 但 contentView.bounds 用 (contentLayoutWidth, originalCardHeight)
+        // 这样 bounds 显示宽度 = contentLayoutWidth (= 窗口宽), 通过 clipsToBounds 显示
+        // 而 transform 不用 (或只用 scale 1.0), App 按原版画布渲染, 窗口裁切显示左边部分
+        // 字不扁 (因为没缩放), 但右边会有空 (因为画布右侧超出窗口被裁掉的是空区域)
+        // 这种方案类似于 1.66 (无 transform, 窗口裁切显示)
+        // 1.90: 关键思路 — scale = 1.0 (完全不缩放)。
+        // - 画布宽 = portraitCanvasWidth (设备全宽, 430pt) = 窗口宽 -> 右边无白边
+        // - 画布高 = portraitCanvasHeight (设备全高, 932pt) > 窗口高 -> 超出部分由 clipsToBounds 裁掉
+        // - transform = scale(1, 1) -> 字 X/Y 都不变形, 圆字保持圆形 (不扁!)
+        // - 代价: 底部内容被裁掉 (大约 167pt), 因为 932 > 765
+        // 但这是 "字不扁 + 无右边白边" 的唯一数学解
+        contentLayoutWidth = portraitCanvasWidth;                       // 窗口宽 = 设备全宽
+        contentLayoutHeight = round(contentLayoutWidth * aspectRatio);   // 窗口视觉高
+        scale = 1.0;                                                     // 不缩
+        landscapeLogicalCanvasOverride = CGSizeZero;                     // 用原版画布 (430x932)
+        verticalScale = 1.0;                                             // 不缩
         CGFloat screenScale = UIScreen.mainScreen.scale;
         contentLayoutWidth = round(contentLayoutWidth * screenScale) / screenScale;
         contentLayoutHeight = round(contentLayoutHeight * screenScale) / screenScale;
-        _aspectContentTransformNeeded = YES;
+        _aspectContentTransformNeeded = NO;                              // 不用 transform
     } else {
         // 竖屏保留 chromeScale 边距以避开非安全区的上下（刘海 / home 条）。
         // 卡片宽度 = 纯内容宽（画布宽 × chromeScale），不在此扣间距——离屏
@@ -837,17 +845,10 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         keyboardZoomContainer.frame = normalCardFrame;
         self->keyboardZoomBaseFrame = normalCardFrame;
         shadowView.frame = keyboardZoomContainer.bounds;
-        // 1.89: 完全照搬 1.71 contentView 设置, 唯一修改是 transform 从
-        // scale(1.0, verticalScale) 改成 scale(verticalScale, verticalScale) 等比缩放,
-        // 修复字体"扁"问题 (圆字保持圆形, 不再被压成椭圆)。
+        // 1.90: 完全照搬原始比例分支 — contentView = kzc.bounds (无 transform, 无缩放),
+        // App 按原版画布渲染, 超出部分由 clipsToBounds 裁切 (内容略被裁, 但字不扁 + 无白边)
         if (aspectRatio > 0 && !keyboardActiveForAspect) {
-            CGFloat originalWidth = portraitCanvasWidth * chromeScale;
-            CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
-            self.contentView.layer.anchorPoint = CGPointMake(0, 0);
-            self.contentView.bounds = CGRectMake(0, 0, originalWidth, originalCardHeight);
-            // 1.71 是 scale(1.0, verticalScale) -> 字扁
-            // 1.89 是 scale(verticalScale, verticalScale) -> 字不扁, X/Y 同步缩
-            self.contentView.transform = CGAffineTransformMakeScale(verticalScale, verticalScale);
+            self.contentView.transform = CGAffineTransformIdentity;
             self.contentView.frame = keyboardZoomContainer.bounds;
             self->contentOffsetY = 0;
         } else {
