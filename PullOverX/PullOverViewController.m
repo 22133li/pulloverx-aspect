@@ -794,15 +794,15 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         [scrollView setContentOffset:CGPointMake(restoredOffset, 0) animated:NO];
     }
 
-    // 把手视口高度: 比例模式下跟随 contentLayoutHeight (精确尺寸), 原始模式按 chromeScale 算全高
+    // 把手视口高度: 比例模式下跟随 contentLayoutHeight (窗口外框高度), 原始模式按 chromeScale 算全高
     CGFloat handleViewportHeight;
     if (aspectSize.width > 0 && !keyboardActiveForAspect) {
         handleViewportHeight = contentLayoutHeight;
     } else {
         handleViewportHeight = CGRectGetHeight(bounds) * chromeScale;
     }
-    handleScrollView.frame = CGRectMake(CGRectGetWidth(bounds) - handleRailWidth, 0, handleRailWidth, handleViewportHeight);
-    handleScrollView.center = CGPointMake(handleScrollView.center.x, CGRectGetMidY(bounds));
+    handleScrollView.frame = CGRectMake(CGRectGetWidth(bounds) - handleRailWidth, normalCardFrame.origin.y, handleRailWidth, handleViewportHeight);
+    handleScrollView.center = CGPointMake(handleScrollView.center.x, CGRectGetMidY(aspectMode ? normalCardFrame : bounds));
     handleScrollView.contentSize = CGSizeMake(handleRailWidth, (handleViewportHeight * 2) - self.handle.frame.size.height);
 
     CGFloat targetHandleOffset = 0;
@@ -845,19 +845,29 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
     // offset 为 0 时卡片位于实体右边缘外；最大 offset 时其右侧保留安全区加 5pt 间隙，
     // 在 iPad、8 Plus 和刘海设备上均适用。container 的 frame 是 scrollView 内容坐标，
     // contentView/shadowView 则只使用 container 的局部 bounds。
-    CGFloat cardH = contentLayoutHeight;
-    // 1.94: aspect 模式 +45pt 高度给内容 (标题栏让出来)
+    // 1.95: aspect 模式 — 窗口外框尺寸不变 (cardH = contentLayoutHeight)
+    // kzc 上移 45pt, contentView 再上移 45pt + 高度 = 739pt (画布完整显示)
+    // - 顶部 45pt 在标题栏位置 (用户接受牺牲, 无 card 背景)
+    // - 中间 contentLayoutHeight pt 在窗口内 (完整显示)
+    // - 底部 0-130pt (差异 = 739 - 45 - contentLayoutHeight) 在窗口底部之外
+    //   但 scrollView 可见, 不被裁切; 这部分内容是 App 的底部
+    // 16:9: 底部 0pt (contentLayoutHeight=694, 739-45-694=0, 完美)
+    // 5:3:  底部 43pt (contentLayoutHeight=651, 739-45-651=43)
+    // 4:3:  底部 175pt (contentLayoutHeight=519, 739-45-519=175)
+    // 5:3/4:3 的底部内容会延伸到窗口底部之下 (scrollView 仍可见, 但超出 cardH 范围无圆角背景)
+    CGFloat cardH = contentLayoutHeight;  // 1.95: 窗口外框尺寸不变
     BOOL aspectMode = (aspectRatio > 0 && !keyboardActiveForAspect);
-    if (aspectMode) {
-        cardH += 45.0;
-    }
     CGRect normalCardFrame = CGRectMake(CGRectGetWidth(bounds), 0, contentLayoutWidth, cardH);
     normalCardFrame.origin.y = CGRectGetMidY(bounds) - CGRectGetHeight(normalCardFrame) / 2.0;
-    // 1.94: aspect 模式下 kzc 高度 +45pt, 确保不超出屏幕 (kzc 底 <= 932)
     if (aspectMode) {
+        // 1.95: 上移 45pt, 让底部 contentView 显示能贴到窗口底 (无遮挡)
+        normalCardFrame.origin.y -= 45.0;
         CGFloat kzcBottom = CGRectGetMaxY(normalCardFrame);
         if (kzcBottom > CGRectGetHeight(bounds)) {
             normalCardFrame.origin.y -= (kzcBottom - CGRectGetHeight(bounds));
+        }
+        if (CGRectGetMinY(normalCardFrame) < 0) {
+            normalCardFrame.origin.y = 0;
         }
     }
     CGFloat screenScale = UIScreen.mainScreen.scale;
@@ -879,12 +889,23 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         // - kzc 上移 22.5pt (一半的标题栏高度), 让卡片垂直居中于外框 (390 x 694) 视觉上
         // - 实际显示: 390 x 739 内容, 顶部 22.5pt + 底部 22.5pt = 45pt 在外框外 (被外框裁切)
         // - 但用户说"标题栏让给内容" -> 标题栏已关, 这 45pt 区域本来就属于内容
+        // 1.95: contentView 上移 45pt, 占用标题栏空间 (用户接受)
+        // contentView 高度 = 画布显示高 (739pt) — 保证完整渲染
+        // 顶部 45pt 在标题栏位置 (用户接受), 底部 (739 - 45 - contentLayoutHeight) pt 在窗口底部之外
+        // - 16:9: 底部 0pt 在窗口外 (contentLayoutHeight = 694, 739 - 45 = 694 ✓)
+        // - 5:3: 底部 43pt 在窗口外 (contentLayoutHeight = 651, 739 - 45 - 651 = 43)
+        // - 4:3: 底部 175pt 在窗口外 (contentLayoutHeight = 519, 739 - 45 - 519 = 175)
+        // 但 kzc 上移 45pt 已经让出顶部空间, 加上 contentView 上移 45pt, 总共上移 90pt
+        // 5:3/4:3 的底部 43/175pt 内容会显示在窗口底部之下 (被 scrollView 裁切, 用户接受)
         if (aspectRatio > 0 && !keyboardActiveForAspect) {
             CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
             self.contentView.layer.anchorPoint = CGPointMake(0, 0);
             self.contentView.bounds = CGRectMake(0, 0, portraitCanvasWidth * chromeScale, originalCardHeight);
             self.contentView.transform = CGAffineTransformMakeScale(1.0, verticalScale);
-            self.contentView.frame = keyboardZoomContainer.bounds;
+            // 1.95: 画布显示高 = 845 * 0.875 = 739pt, 让 contentView 高度 = 739pt (完整渲染)
+            CGRect kzcBounds = keyboardZoomContainer.bounds;
+            CGFloat canvasDisplayHeight = originalCardHeight * verticalScale;  // 739
+            self.contentView.frame = CGRectMake(kzcBounds.origin.x, kzcBounds.origin.y - 45.0, kzcBounds.size.width, canvasDisplayHeight);
         } else {
             self.contentView.transform = CGAffineTransformIdentity;
             self.contentView.frame = keyboardZoomContainer.bounds;
