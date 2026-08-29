@@ -716,25 +716,23 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         contentLayoutWidth = round(logicalCanvas.width * scale * screenScale) / screenScale;
         contentLayoutHeight = round(availableCardHeight * screenScale) / screenScale;
     } else if (aspectRatio > 0 && !keyboardActiveForAspect) {
-        // 1.86: 窗口宽 = 设备宽 - handleRailWidth - CONTENT_EDGE_GAP - safeArea 边距,
-        // 让窗口完全打开时右边缘对齐 handle 轨道左边缘, 消除右黑边。
-        CGFloat rail = [self handleRailWidth];
-        CGFloat safe = [self trailingSafeAreaInset];
-        CGFloat originalWidth = portraitCanvasWidth - rail - CONTENT_EDGE_GAP - safe;   // 窗口宽
+        // 1.89: 完全照搬 1.71 aspect 分支 — 唯一修改是把 contentView.transform 从
+        // scale(1, verticalScale) 改成 scale(verticalScale, verticalScale), 修复字扁。
+        // - 外框 = originalWidth x (originalWidth*aspectRatio), 1.71 形态
+        // - FBScene 渲染 = 原版 chromeScale 缩过的画布 (App 内容按原版比例排版, 完整不被压缩)
+        // - contentView.bounds = 原版 chromeScale 缩过的画布 (1.71 一致)
+        // - transform = scale(verticalScale, verticalScale) 等比缩放取代 1.71 的 Y-only
+        CGFloat originalWidth = portraitCanvasWidth * chromeScale;
         CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
-        contentLayoutWidth = originalWidth;                              // 窗口宽
+        contentLayoutWidth = originalWidth;                              // 窗口宽 = 原版宽
         contentLayoutHeight = round(originalWidth * aspectRatio);        // 窗口视觉高
         scale = chromeScale;
         landscapeLogicalCanvasOverride = CGSizeZero;                    // 原版画布, FBScene 全高渲染
-        // 1.88: 等比缩放比例 — 用宽度方向算 (窗口宽 / 原版画布宽 chromeScale 缩过的)
-        // 这样 scale 后原版画布宽 = 窗口宽, 右边精确对齐, 无残余白边。
-        // 高度方向会跟着等比缩放, 由 clipsToBounds 裁切超出部分。
-        CGFloat originalCardWidth = portraitCanvasWidth * chromeScale;
-        verticalScale = contentLayoutWidth / originalCardWidth;
+        // 等比缩放比例 = 窗口高 / 原版高
+        verticalScale = MIN(contentLayoutHeight / originalCardHeight, 1.0);
         CGFloat screenScale = UIScreen.mainScreen.scale;
         contentLayoutWidth = round(contentLayoutWidth * screenScale) / screenScale;
         contentLayoutHeight = round(contentLayoutHeight * screenScale) / screenScale;
-        verticalScale = round(verticalScale * 1000) / 1000;  // 钳制精度到小数点后 3 位
         _aspectContentTransformNeeded = YES;
     } else {
         // 竖屏保留 chromeScale 边距以避开非安全区的上下（刘海 / home 条）。
@@ -759,11 +757,9 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
                                           CGRectGetMaxY(dragAndDropView.frame) + 16 + CGRectGetMidY(dragAndDropLabel.bounds));
 
     scrollView.frame = bounds;
-    // 卡片展开后的右边缘位于实体安全区外加 5pt 间隙，闭合时仍在屏幕外；
-    // 因此滚动行程为卡片宽度加右侧安全区和间隙，保证把手与卡片始终同步。
-    // 1.86: 比例模式下 trailingInset = 0, 让窗口完全打开时右边缘贴齐 handle 轨道左边缘,
-    // 消除右边黑边 (比例模式窗口接近设备全宽, 留 50pt 边距显得突兀)。
-    CGFloat trailingInset = (aspectRatio > 0 && !keyboardActiveForAspect) ? 0 : [self trailingSafeAreaInset] + CONTENT_EDGE_GAP;
+    // 1.89: trailingInset 恢复 1.71 行为 — 比例模式下也用 safeArea + GAP,
+    // 让 handle 轨道在右边正常显示 (1.86 的 0 让 handle 盖在卡片上)。
+    CGFloat trailingInset = [self trailingSafeAreaInset] + CONTENT_EDGE_GAP;
     scrollView.contentSize = CGSizeMake(CGRectGetWidth(bounds) + contentLayoutWidth + trailingInset,
                                         CGRectGetHeight(bounds));
     CGFloat maximumContentOffsetX = [self maximumContentOffsetX];
@@ -841,22 +837,17 @@ typedef NS_ENUM(NSInteger, POKeyboardNotificationState) {
         keyboardZoomContainer.frame = normalCardFrame;
         self->keyboardZoomBaseFrame = normalCardFrame;
         shadowView.frame = keyboardZoomContainer.bounds;
-        // 1.88: 修复 1.87 的残余白边 — contentView.bounds 必须用精确公式反推,
-        // 让 transform scale 后显示区域精确 = 窗口大小 (无任何白边/黑边)。
-        // 公式: bounds.size = (windowSize / verticalScale) -> scale 后 = windowSize
+        // 1.89: 完全照搬 1.71 contentView 设置, 唯一修改是 transform 从
+        // scale(1.0, verticalScale) 改成 scale(verticalScale, verticalScale) 等比缩放,
+        // 修复字体"扁"问题 (圆字保持圆形, 不再被压成椭圆)。
         if (aspectRatio > 0 && !keyboardActiveForAspect) {
-            CGFloat rail = [self handleRailWidth];
-            CGFloat safe = [self trailingSafeAreaInset];
-            CGFloat originalWidth = portraitCanvasWidth - rail - CONTENT_EDGE_GAP - safe;
+            CGFloat originalWidth = portraitCanvasWidth * chromeScale;
             CGFloat originalCardHeight = portraitCanvasHeight * chromeScale;
-            // bounds 反推: scale 后 = windowSize
-            // 用 max(verticalScale, 0.01) 避免除零
-            CGFloat scale = MAX(verticalScale, 0.01);
-            CGFloat boundsW = contentLayoutWidth / scale;
-            CGFloat boundsH = contentLayoutHeight / scale;
             self.contentView.layer.anchorPoint = CGPointMake(0, 0);
-            self.contentView.bounds = CGRectMake(0, 0, boundsW, boundsH);
-            self.contentView.transform = CGAffineTransformMakeScale(scale, scale);
+            self.contentView.bounds = CGRectMake(0, 0, originalWidth, originalCardHeight);
+            // 1.71 是 scale(1.0, verticalScale) -> 字扁
+            // 1.89 是 scale(verticalScale, verticalScale) -> 字不扁, X/Y 同步缩
+            self.contentView.transform = CGAffineTransformMakeScale(verticalScale, verticalScale);
             self.contentView.frame = keyboardZoomContainer.bounds;
             self->contentOffsetY = 0;
         } else {
